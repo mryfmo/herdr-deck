@@ -129,3 +129,28 @@ enum TerminalInputMapper {
     }
 
 }
+
+assert(
+    TerminalInputMapper.map(Data("\u{1b}[A\u{1b}[B\u{1b}[C\u{1b}[D\u{1b}[Z".utf8))
+        == [TerminalMappedInput(keys: ["up", "down", "right", "left", "shift+tab"])]
+)
+assert(TerminalInputMapper.map(Data("\u{1b}[<35;10;5M".utf8)).isEmpty)
+assert(TerminalInputMapper.map(Data("\u{1b}OA".utf8)).isEmpty)
+assert(
+    TerminalInputMapper.map(Data("\u{1b}[200~paste\u{1b}[201~".utf8))
+        == [TerminalMappedInput(text: "paste")]
+)
+assert(TerminalInputMapper.map(Data([0x1b])) == [TerminalMappedInput(keys: ["esc"])])
+assert(
+    TerminalInputMapper.map(Data("a\nb\nc".utf8)) == [
+        TerminalMappedInput(text: "a"),
+        TerminalMappedInput(keys: ["enter"]),
+        TerminalMappedInput(text: "b"),
+        TerminalMappedInput(keys: ["enter"]),
+        TerminalMappedInput(text: "c"),
+    ]
+)
+let longPaste = TerminalInputMapper.map(Data(String(repeating: "\n", count: 33).utf8))
+assert(longPaste.map(\.keys.count) == [32, 1])
+assert(longPaste.allSatisfy { $0.keys.count <= 32 })
+print("TerminalInputMapper checks passed")

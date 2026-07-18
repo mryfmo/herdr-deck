@@ -55,21 +55,53 @@ final class ModelDecodingTests: XCTestCase {
 
     func testTerminalInputMapperHandlesUnicodeAndControlKeys() {
         let mapped = TerminalInputMapper.map(Data("日本語🙂".utf8))
-        XCTAssertEqual(mapped.text, "日本語🙂")
-        XCTAssertTrue(mapped.keys.isEmpty)
+        XCTAssertEqual(mapped, [TerminalMappedInput(text: "日本語🙂")])
 
         XCTAssertEqual(
             TerminalInputMapper.map(Data([0x1b, 0x5b, 0x41])),
-            TerminalMappedInput(keys: ["up"])
+            [TerminalMappedInput(keys: ["up"])]
         )
         XCTAssertEqual(
             TerminalInputMapper.map(Data(Array("A🙂".utf8) + [0x1b, 0x5b, 0x43, 0x03])),
-            TerminalMappedInput(text: "A🙂", keys: ["right", "ctrl+c"])
+            [TerminalMappedInput(text: "A🙂"), TerminalMappedInput(keys: ["right", "ctrl+c"])]
         )
         XCTAssertEqual(
             Array(TerminalInputMapper.encode(keys: ["ctrl+c", "left", "enter"])),
             [0x03, 0x1b, 0x5b, 0x44, 0x0d]
         )
+    }
+
+    func testTerminalInputMapperDropsUnknownEscapeSequencesAndPreservesOrder() {
+        XCTAssertTrue(TerminalInputMapper.map(Data("\u{1b}[<35;10;5M".utf8)).isEmpty)
+        XCTAssertTrue(TerminalInputMapper.map(Data("\u{1b}OA".utf8)).isEmpty)
+        XCTAssertEqual(
+            TerminalInputMapper.map(Data("\u{1b}[200~paste\u{1b}[201~".utf8)),
+            [TerminalMappedInput(text: "paste")]
+        )
+        XCTAssertEqual(
+            TerminalInputMapper.map(Data("a\nb\nc".utf8)),
+            [
+                TerminalMappedInput(text: "a"),
+                TerminalMappedInput(keys: ["enter"]),
+                TerminalMappedInput(text: "b"),
+                TerminalMappedInput(keys: ["enter"]),
+                TerminalMappedInput(text: "c"),
+            ]
+        )
+        XCTAssertTrue(
+            TerminalInputMapper.map(Data(String(repeating: "\n", count: 33).utf8))
+                .allSatisfy { $0.keys.count <= 32 }
+        )
+    }
+
+    func testAgentStartedResponseDecodesGatewaySlimAgentWithoutArgv() throws {
+        let json = #"{"type":"agent_started","agent":{"pane_id":"p1","terminal_id":"t1"}}"#.data(using: .utf8)!
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let response = try decoder.decode(AgentStartedResponse.self, from: json)
+        XCTAssertEqual(response.agent.paneId, "p1")
+        XCTAssertEqual(response.agent.terminalId, "t1")
+        XCTAssertNil(response.argv)
     }
 
     func testRichOutputParserRecognizesMarkdownBlocksAndEmoji() {

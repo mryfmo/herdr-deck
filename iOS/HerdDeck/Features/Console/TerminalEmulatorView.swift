@@ -5,6 +5,7 @@ import UIKit
 struct TerminalEmulatorView: UIViewRepresentable {
     let feed: TerminalFeed
     var fontSize: CGFloat = 13
+    var allowMouseReporting = true
     var onInput: @MainActor (Data) -> Void
     var onResize: @MainActor (_ columns: Int, _ rows: Int) -> Void
 
@@ -25,7 +26,7 @@ struct TerminalEmulatorView: UIViewRepresentable {
         view.customBlockGlyphs = true
         view.antiAliasCustomBlockGlyphs = true
         view.useBrightColors = true
-        view.allowMouseReporting = true
+        view.allowMouseReporting = allowMouseReporting
         view.linkReporting = .implicit
         view.optionAsMetaKey = true
         view.accessibilityLabel = "Herdr terminal"
@@ -49,6 +50,7 @@ struct TerminalEmulatorView: UIViewRepresentable {
         context.coordinator.parent = self
         let desired = UIFont.monospacedSystemFont(ofSize: fontSize, weight: .regular)
         if uiView.font.pointSize != desired.pointSize { uiView.font = desired }
+        uiView.allowMouseReporting = allowMouseReporting
     }
 
     static func dismantleUIView(_ uiView: TerminalView, coordinator: Coordinator) {

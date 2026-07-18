@@ -1,0 +1,101 @@
+T006 validation
+===============
+
+Standalone mapper check (default CLT environment)
+-------------------------------------------------
+command:
+  swift .orchestration/validation/T006-input-mapper-check.swift
+
+exit_code: 1
+result:
+  The script did not execute. The sandbox denied the default home module cache,
+  and the installed Swift 6.3.3 compiler rejected the default SDK built by
+  Swift 6.3.2.
+
+Standalone mapper check (compatible installed SDK)
+--------------------------------------------------
+command:
+  swift -module-cache-path .orchestration/validation/T006-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk .orchestration/validation/T006-input-mapper-check.swift
+
+exit_code: 0
+output:
+  TerminalInputMapper checks passed
+
+Assertions cover:
+  - CSI A/B/C/D/Z known-key rail
+  - complete mouse sequence discard
+  - ESC O application-cursor sequence discard
+  - bracketed-paste wrapper discard with content preservation
+  - lone ESC mapping
+  - ordered a/enter/b/enter/c chunks
+  - 33 consecutive enters split into 32 and 1
+  - every key chunk capped at 32
+
+Production/check copy equality
+------------------------------
+command:
+  diff -u iOS/HerdDeck/Features/Console/TerminalInputMapper.swift <(head -131 .orchestration/validation/T006-input-mapper-check.swift)
+
+exit_code: 0
+output: none
+
+The first 131 lines of the standalone script are the complete production
+TerminalInputMapper.swift implementation; assertions follow that exact copy.
+
+Whole Swift tree parse
+----------------------
+command:
+  make swift-parse
+
+exit_code: 0
+output:
+  swiftc -frontend -parse $(find iOS/HerdDeck iOS/HerdDeckTests -name '*.swift' -print | sort)
+
+TerminalInputMapper typecheck
+-----------------------------
+command:
+  swiftc -typecheck -swift-version 6 -module-cache-path .orchestration/validation/T006-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk iOS/HerdDeck/Features/Console/TerminalInputMapper.swift
+
+exit_code: 0
+output: none
+
+AppState/model/service dependency closure typecheck
+---------------------------------------------------
+command:
+  swiftc -typecheck -swift-version 6 -module-cache-path .orchestration/validation/T006-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk iOS/HerdDeck/Models/JSONValue.swift iOS/HerdDeck/Models/GatewayModels.swift iOS/HerdDeck/Models/HerdrModels.swift iOS/HerdDeck/Models/AgmsgModels.swift iOS/HerdDeck/Models/TerminalTransportModels.swift iOS/HerdDeck/Models/MissionModels.swift iOS/HerdDeck/Networking/GatewayJSONCoding.swift iOS/HerdDeck/Networking/GatewayClient.swift iOS/HerdDeck/Services/KeychainStore.swift iOS/HerdDeck/Services/BiometricLock.swift iOS/HerdDeck/Services/AgentNotificationService.swift iOS/HerdDeck/Services/NetworkPathService.swift iOS/HerdDeck/App/AppState.swift
+
+exit_code: 0
+output: none
+
+This closure includes the slim AgentStartedResponse, duplicate-safe
+AgentNotificationService, and transport-policy-only AppState recompute.
+
+Objective-C++ Mosh syntax check
+-------------------------------
+command:
+  clang++ -fsyntax-only -x objective-c++ -fobjc-arc -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk -I .orchestration/validation/T006-mosh-stub iOS/HerdDeckMosh/HerdMoshSession.mm
+
+exit_code: 0
+output: none
+
+The task-local mosh/moshiosbridge.h declares only the pinned bridge function
+signature needed for syntax checking; it does not replace or modify the
+production dependency.
+
+Environment boundary
+--------------------
+No iOS SDK or resolved SwiftTerm module exists in the worker environment, so
+TerminalConsoleView and TerminalEmulatorView receive whole-tree parse coverage
+here. T006 assigns full typecheck/xcodebuild to the orchestrator environment.
+
+Repository review gate
+----------------------
+command:
+  make require-crit-review
+
+exit_code: 2
+output:
+  make: *** No rule to make target `require-crit-review'. Stop.
+
+The required Make target is absent. No browser review was opened; the AGMSG
+orchestrator remains the independent review surface for this bounded change.

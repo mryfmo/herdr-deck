@@ -10,7 +10,12 @@ final class AgentNotificationService {
     }
 
     func process(_ agents: [HerdrAgent]) {
-        defer { previousStatuses = Dictionary(uniqueKeysWithValues: agents.map { ($0.id, $0.agentStatus) }) }
+        defer {
+            previousStatuses = Dictionary(
+                agents.map { ($0.id, $0.agentStatus) },
+                uniquingKeysWith: { _, latest in latest }
+            )
+        }
         for agent in agents {
             guard let previous = previousStatuses[agent.id], previous != agent.agentStatus else { continue }
             guard agent.agentStatus == .blocked || agent.agentStatus == .done else { continue }

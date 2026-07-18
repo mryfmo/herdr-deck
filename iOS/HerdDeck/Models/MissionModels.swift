@@ -82,8 +82,13 @@ struct StartProfileRequest: Codable, Sendable {
     let focus: Bool
 }
 
+struct StartedAgent: Codable, Sendable {
+    let paneId: String
+    let terminalId: String
+}
+
 struct AgentStartedResponse: Codable, Sendable {
     let type: String
-    let agent: HerdrAgent
-    let argv: [String]
+    let agent: StartedAgent
+    let argv: [String]?
 }

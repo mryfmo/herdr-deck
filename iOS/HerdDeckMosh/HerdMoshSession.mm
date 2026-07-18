@@ -1,6 +1,8 @@
 #import "HerdMoshSession.h"
 
 #include <mosh/moshiosbridge.h>
+#include <pthread.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -12,6 +14,7 @@
     NSString *_predictionMode;
     int32_t _port;
     struct winsize _windowSize;
+    struct winsize *_activeWindowSize;
     int _inputPipe[2];
     int _outputPipe[2];
     FILE *_inputFile;
@@ -21,6 +24,8 @@
     HerdMoshOutputHandler _outputHandler;
     HerdMoshExitHandler _exitHandler;
     NSData *_encodedState;
+    pthread_t _moshThread;
+    BOOL _hasMoshThread;
     BOOL _running;
     BOOL _stopping;
 }
@@ -100,6 +105,13 @@ static void HerdMoshStateCallback(const void *context, const void *buffer, size_
     });
 
     dispatch_async(_engineQueue, ^{
+        struct winsize windowSize;
+        @synchronized (self) {
+            windowSize = self->_windowSize;
+            self->_activeWindowSize = &windowSize;
+            self->_moshThread = pthread_self();
+            self->_hasMoshThread = YES;
+        }
         setenv("TERM", "xterm-256color", 1);
         setenv("COLORTERM", "truecolor", 1);
         const char *lang = getenv("LANG");
@@ -111,7 +123,7 @@ static void HerdMoshStateCallback(const void *context, const void *buffer, size_
         int result = mosh_main(
             self->_inputFile,
             self->_outputFile,
-            &self->_windowSize,
+            &windowSize,
             HerdMoshStateCallback,
             (__bridge const void *)self,
             self->_host.UTF8String,
@@ -123,7 +135,11 @@ static void HerdMoshStateCallback(const void *context, const void *buffer, size_
             "no"
         );
 
-        @synchronized (self) { self->_running = NO; }
+        @synchronized (self) {
+            self->_activeWindowSize = NULL;
+            self->_hasMoshThread = NO;
+            self->_running = NO;
+        }
         [self closeDescriptors];
         dispatch_async(dispatch_get_main_queue(), ^{ self->_exitHandler((int32_t)result); });
     });
@@ -145,6 +161,8 @@ static void HerdMoshStateCallback(const void *context, const void *buffer, size_
     @synchronized (self) {
         _windowSize.ws_col = (unsigned short)MAX(20, MIN(columns, 500));
         _windowSize.ws_row = (unsigned short)MAX(6, MIN(rows, 300));
+        if (_activeWindowSize != NULL) *_activeWindowSize = _windowSize;
+        if (_hasMoshThread) pthread_kill(_moshThread, SIGWINCH);
     }
 }
 

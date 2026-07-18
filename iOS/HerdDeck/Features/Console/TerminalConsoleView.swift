@@ -185,6 +185,7 @@ struct TerminalConsoleView: View {
             ZStack(alignment: .bottomLeading) {
                 TerminalEmulatorView(
                     feed: activeFeed,
+                    allowMouseReporting: usesMoshTerminal,
                     onInput: handleTerminalInput,
                     onResize: handleTerminalResize
                 )
@@ -395,11 +396,13 @@ struct TerminalConsoleView: View {
             return
         }
         guard let paneID else { return }
-        let mapped = TerminalInputMapper.map(data)
-        guard !mapped.text.isEmpty || !mapped.keys.isEmpty else { return }
+        let chunks = TerminalInputMapper.map(data)
+        guard !chunks.isEmpty else { return }
         Task {
             do {
-                try await appState.sendInput(paneID: paneID, text: mapped.text, keys: mapped.keys)
+                for chunk in chunks {
+                    try await appState.sendInput(paneID: paneID, text: chunk.text, keys: chunk.keys)
+                }
             } catch {
                 terminalError = error.localizedDescription
                 Haptic.error()

@@ -340,12 +340,15 @@ final class AppState: ObservableObject {
     func updateTerminalPreferences(_ mutate: (inout TerminalUserPreferences) -> Void) {
         var updated = terminalPreferences
         mutate(&updated)
+        let transportPolicyChanged = updated.transportPolicy != terminalPreferences.transportPolicy
         terminalPreferences = updated
         if let data = try? JSONEncoder().encode(updated) {
             defaults.set(data, forKey: terminalPreferencesKey)
         }
-        transportSwitchTask?.cancel()
-        recomputeTerminalRoute()
+        if transportPolicyChanged {
+            transportSwitchTask?.cancel()
+            recomputeTerminalRoute()
+        }
     }
 
     func startMission(_ request: StartMissionRequest) async throws -> MissionRecord {
