@@ -70,6 +70,38 @@ test('starts a session and never includes the key in audit data', async () => {
   }
 });
 
+test('expires stored session metadata after ten minutes', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const directory = await mkdtemp(join(tmpdir(), 'herddeck-mosh-'));
+  try {
+    const fakeMosh = await executable(
+      directory,
+      'mosh-server',
+      "printf 'MOSH CONNECT 60042 dGVzdC1rZXk\\n'",
+    );
+    const fakeHerdr = await executable(directory, 'herdr', 'exit 0');
+    const manager = new MoshSessionManager({
+      config: {
+        enabled: true,
+        serverPath: fakeMosh,
+        herdrPath: fakeHerdr,
+        advertiseHost: 'macbook.example.ts.net',
+      },
+      monitor: { latest: { panes: [{ pane_id: 'w1:p1' }] } },
+      audit: { success: async () => undefined },
+    });
+    await manager.initialize();
+    const session = await manager.createSession({ paneId: 'w1:p1' });
+    assert.equal(manager.sessions.has(session.id), true);
+
+    t.mock.timers.tick(600_000);
+
+    assert.equal(manager.sessions.has(session.id), false);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('rejects unsupported prediction modes before launching mosh-server', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'herddeck-mosh-'));
   try {

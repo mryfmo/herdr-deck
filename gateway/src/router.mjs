@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { URL } from 'node:url';
 import { authorize } from './auth.mjs';
+import { HerdrRpcError } from './herdr-client.mjs';
 import { normalizeError, requestError } from './utils.mjs';
 import { publicProfile } from './workflow.mjs';
 
@@ -94,6 +95,13 @@ function decodeSegment(value) {
   }
 }
 
+function herdrStatus(code) {
+  const value = String(code ?? '');
+  if (value === 'not_found' || value.endsWith('_not_found')) return 404;
+  if (value.startsWith('invalid_')) return 400;
+  return 502;
+}
+
 export function createRouter(context) {
   const {
     config,
@@ -134,12 +142,12 @@ export function createRouter(context) {
       if (!url.pathname.startsWith('/v1/')) {
         return json(response, 404, { error: { code: 'not_found', message: 'Route not found' } });
       }
-      if (!authorize(request, token)) {
-        return json(response, 401, { error: { code: 'unauthorized', message: 'Bearer token required' } });
-      }
-      const rateKey = `${request.socket.remoteAddress ?? 'local'}:${tokenFingerprint}`;
+      const rateKey = request.socket.remoteAddress ?? 'local';
       if (!limiter.allow(rateKey)) {
         return json(response, 429, { error: { code: 'rate_limited', message: 'Too many requests' } });
+      }
+      if (!authorize(request, token)) {
+        return json(response, 401, { error: { code: 'unauthorized', message: 'Bearer token required' } });
       }
 
       if (request.method === 'GET' && url.pathname === '/v1/health') {
@@ -311,7 +319,10 @@ export function createRouter(context) {
 
       return json(response, 404, { error: { code: 'not_found', message: 'Route not found' } });
     } catch (error) {
-      const status = error.statusCode || (error.code === 'ENOENT' ? 503 : 500);
+      const isHerdrError = error instanceof HerdrRpcError;
+      const status = isHerdrError
+        ? herdrStatus(error.code)
+        : error.statusCode || (error.code === 'ENOENT' ? 503 : 500);
       await audit.failure('http.request', error, {
         requestId,
         method: request.method,
@@ -320,7 +331,9 @@ export function createRouter(context) {
       }).catch(() => undefined);
       return json(response, status, {
         error: {
-          code: error.code || (status === 500 ? 'internal_error' : 'request_error'),
+          code: String(error.code ?? (isHerdrError
+            ? 'herdr_error'
+            : status === 500 ? 'internal_error' : 'request_error')),
           message: error.message,
         },
       });

@@ -4,7 +4,7 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
-import { HerdrClient, HerdrRpcError } from '../src/herdr-client.mjs';
+import { HerdrClient, HerdrRpcError, SnapshotMonitor } from '../src/herdr-client.mjs';
 
 async function withMockHerdr(handler, body) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'herddeck-herdr-'));
@@ -105,4 +105,27 @@ test('HerdrClient keeps events.subscribe open and forwards pushed events', async
     assert.equal(event.event, 'workspace_created');
     assert.equal(event.data.workspace.workspace_id, 'w1');
   });
+});
+
+test('SnapshotMonitor ignores pane scroll-only snapshot changes', async () => {
+  const snapshots = [
+    {
+      version: '0.10.0',
+      panes: [{ pane_id: 'p1', title: 'Agent', scroll: { top: 0, bottom: 40 } }],
+    },
+    {
+      version: '0.10.0',
+      panes: [{ pane_id: 'p1', title: 'Agent', scroll: { top: 20, bottom: 60 } }],
+    },
+  ];
+  const monitor = new SnapshotMonitor({
+    async snapshot() { return snapshots.shift(); },
+  });
+  let emissions = 0;
+  monitor.on('snapshot', () => { emissions += 1; });
+
+  await monitor.refresh();
+  await monitor.refresh();
+
+  assert.equal(emissions, 1);
 });

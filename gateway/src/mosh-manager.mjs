@@ -172,6 +172,8 @@ export class MoshSessionManager {
       serverPid: result.serverPid,
     };
     this.sessions.set(session.id, { ...session, key: undefined });
+    const expiry = setTimeout(() => this.sessions.delete(session.id), 10 * 60 * 1000);
+    expiry.unref?.();
     await this.audit.success('mosh.session.start', {
       sessionId: session.id,
       paneId,

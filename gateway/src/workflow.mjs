@@ -387,6 +387,13 @@ export class MissionOrchestrator {
 
   async resumeRunning() {
     const records = await this.store.list();
+    for (const mission of records.filter((record) => record.status === 'starting')) {
+      const failed = await this.store.update(mission.id, {
+        status: 'failed',
+        error: 'gateway restarted during start',
+      });
+      this.events.publish('mission', failed);
+    }
     for (const mission of records.filter((record) => record.status === 'running')) {
       await this.delivery.start(mission);
     }

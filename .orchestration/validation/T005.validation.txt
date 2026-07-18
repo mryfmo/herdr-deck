@@ -1,0 +1,91 @@
+T005 validation
+===============
+
+Baseline regression run
+-----------------------
+command:
+  cd gateway && node --test tests/router.test.mjs tests/herdr-client.test.mjs tests/workflow.test.mjs tests/mosh-manager.test.mjs
+
+result:
+  21 passed, 12 failed.
+
+Expected requirement failures:
+  - SnapshotMonitor emitted twice for a scroll-only change.
+  - Mosh session metadata remained after the ten-minute timer advance.
+  - Authentication ran before rate limiting and the limiter key included the token fingerprint.
+  - HerdrRpcError cases returned 500 instead of 404/400/502.
+  - Stale starting missions were not transitioned on resume.
+
+Environment-only failures:
+  - Four existing HerdrClient Unix-socket tests failed at server.listen() with
+    EPERM under the workspace sandbox.
+
+Syntax checks
+-------------
+command:
+  node --check gateway/src/herdr-client.mjs
+  node --check gateway/src/workflow.mjs
+  node --check gateway/src/router.mjs
+  node --check gateway/src/mosh-manager.mjs
+  node --check gateway/tests/herdr-client.test.mjs
+  node --check gateway/tests/workflow.test.mjs
+  node --check gateway/tests/router.test.mjs
+  node --check gateway/tests/mosh-manager.test.mjs
+
+exit_code: 0
+output: none
+
+Socket-independent gateway tests
+--------------------------------
+command:
+  cd gateway && node --test tests/auth.test.mjs tests/agmsg-client.test.mjs tests/mosh-manager.test.mjs tests/router.test.mjs tests/workflow.test.mjs
+
+exit_code: 0
+summary:
+  tests 34
+  pass 34
+  fail 0
+  duration_ms 2943.10625
+
+Covered T005 behavior:
+  - /healthz unauthenticated and not rate limited
+  - protected route 401
+  - failed authentication consumes the source-address rate limit
+  - rate limit 429
+  - HerdrRpcError 404/400/502 mapping and string code
+  - stale starting mission failure transition and mission publish
+  - MissionOrchestrator.start happy path
+  - ten-minute Mosh session metadata expiry
+
+Focused socket-free SnapshotMonitor test
+----------------------------------------
+command:
+  cd gateway && node --test --test-name-pattern='SnapshotMonitor ignores pane scroll-only snapshot changes' tests/herdr-client.test.mjs
+
+exit_code: 0
+summary:
+  tests 1
+  pass 1
+  fail 0
+  duration_ms 88.591208
+
+Excluded validation
+-------------------
+The four pre-existing HerdrClient tests create a Unix domain socket. The
+managed workspace sandbox rejects net.Server.listen(socketPath) with EPERM.
+The new fingerprint regression test is socket-free and was run separately.
+Per T005, the orchestrator owns the full suite and live snapshot-frequency
+check.
+
+Repository review gate
+----------------------
+command:
+  make require-crit-review
+
+exit_code: 2
+output:
+  make: *** No rule to make target `require-crit-review'. Stop.
+
+No browser review was opened. The required Make target is absent, so the
+orchestrator remains the independent review surface for this bounded worker
+change.

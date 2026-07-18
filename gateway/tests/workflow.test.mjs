@@ -136,6 +136,79 @@ test('MissionStore serializes concurrent writes and reloads durable mission stat
   }
 });
 
+test('MissionOrchestrator.start persists and publishes a running mission', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'herddeck-mission-start-'));
+  try {
+    let record;
+    const joins = [];
+    const published = [];
+    const startedAgents = [];
+    const service = new MissionOrchestrator({
+      herdr: {
+        async rpc(method) {
+          if (method === 'workspace.create') {
+            return {
+              type: 'workspace_created',
+              workspace: { workspace_id: 'workspace-1' },
+              tab: { tab_id: 'tab-1' },
+              root_pane: { pane_id: 'root-pane' },
+            };
+          }
+          assert.equal(method, 'pane.close');
+          return { type: 'ok' };
+        },
+        async startAgent(params) {
+          startedAgents.push(params);
+          return {
+            type: 'agent_started',
+            agent: {
+              pane_id: `pane-${startedAgents.length}`,
+              terminal_id: `terminal-${startedAgents.length}`,
+            },
+          };
+        },
+      },
+      agmsg: { async join(params) { joins.push(params); } },
+      monitor: { async refresh() {} },
+      config: {
+        profiles: [orchestrator, executor],
+        projectRoots: [directory],
+        deliveryAssist: { enabled: true },
+      },
+      store: {
+        async create(value) { record = value; return value; },
+        async update(id, patch) {
+          assert.equal(id, record.id);
+          record = { ...record, ...patch };
+          return record;
+        },
+      },
+      audit: { async success() {}, async failure() {} },
+      events: { publish(name, value) { published.push([name, value.status]); } },
+    });
+    let deliveryStarted;
+    service.delivery.start = async (value) => { deliveryStarted = value.id; };
+
+    const result = await service.start({
+      title: 'Start mission',
+      goal: 'Verify the mission startup path.',
+      projectPath: directory,
+      team: 'herddeck',
+      orchestratorProfileId: orchestrator.id,
+      executorProfileIds: [executor.id],
+    });
+
+    assert.equal(result.status, 'running');
+    assert.equal(result.agents.length, 2);
+    assert.equal(joins.length, 3);
+    assert.equal(startedAgents.length, 2);
+    assert.equal(deliveryStarted, result.id);
+    assert.deepEqual(published.map((entry) => entry[1]), ['starting', 'running']);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('delivery assist injects targeted Codex messages with delayed Enter for an opaque id', async () => {
   const calls = [];
   const assist = new DeliveryAssist({
@@ -233,6 +306,44 @@ test('mission reconciliation completes only after the orchestrator is done and e
   assert.deepEqual(updatedPatch, { status: 'completed', error: null });
   assert.equal(stoppedMission, 'mission-1');
   assert.equal(published.status, 'completed');
+});
+
+test('resumeRunning fails stale starting missions and publishes the transition', async () => {
+  const records = [
+    { id: 'mission-starting', status: 'starting' },
+    { id: 'mission-running', status: 'running' },
+  ];
+  const updates = [];
+  const published = [];
+  const service = new MissionOrchestrator({
+    herdr: {},
+    agmsg: {},
+    monitor: {},
+    config: { deliveryAssist: { enabled: true } },
+    store: {
+      async list() { return records; },
+      async update(id, patch) {
+        updates.push([id, patch]);
+        return { ...records.find((record) => record.id === id), ...patch };
+      },
+    },
+    audit: {},
+    events: { publish(name, value) { published.push([name, value]); } },
+  });
+  const resumed = [];
+  service.delivery.start = async (record) => { resumed.push(record.id); };
+
+  await service.resumeRunning();
+
+  assert.deepEqual(updates, [[
+    'mission-starting',
+    { status: 'failed', error: 'gateway restarted during start' },
+  ]]);
+  assert.deepEqual(published, [[
+    'mission',
+    { id: 'mission-starting', status: 'failed', error: 'gateway restarted during start' },
+  ]]);
+  assert.deepEqual(resumed, ['mission-running']);
 });
 
 test('mission reconciliation accepts an explicit durable AGMSG completion signal', async () => {

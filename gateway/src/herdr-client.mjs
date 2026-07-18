@@ -228,6 +228,10 @@ export class HerdrClient {
 
 function snapshotFingerprint(snapshot) {
   if (!snapshot) return '';
+  // Terminal output mutates pane.scroll and pane/agent revision; neither changes
+  // the topology or agent state represented by a snapshot notification.
+  const panes = snapshot.panes?.map(({ scroll: _scroll, revision: _revision, ...pane }) => pane);
+  const agents = snapshot.agents?.map(({ revision: _revision, ...agent }) => agent);
   const compact = {
     version: snapshot.version,
     protocol: snapshot.protocol,
@@ -236,9 +240,9 @@ function snapshotFingerprint(snapshot) {
     focused_pane_id: snapshot.focused_pane_id,
     workspaces: snapshot.workspaces,
     tabs: snapshot.tabs,
-    panes: snapshot.panes,
+    panes,
     layouts: snapshot.layouts,
-    agents: snapshot.agents,
+    agents,
   };
   return JSON.stringify(compact);
 }
