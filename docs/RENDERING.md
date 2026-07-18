@@ -49,14 +49,17 @@ Rich mode は読みやすさを優先するため、terminal cursor / alternate-
 
 `TerminalEmulatorView` は SwiftTerm `TerminalView` を埋め込み、Gateway の ANSI snapshotまたは Mosh byte streamをfeedします。
 
+Gateway route は Herdr の `visible` screen をpollし、更新ごとに SwiftTerm をfull resetして現在画面をfeedします。この経路に過去screenのscrollbackはありません。連続byte streamとscrollbackを保持するのはMosh routeだけです。
+
 利用している機能:
 
 - VT100 / Xterm control sequence
 - standard / bright / 256-color / True Color
 - bold / italic / underline / inverse
-- cursor、alternate screen、scrollback
+- cursor、alternate screen
+- Mosh route の terminal scrollback
 - box drawing用 custom glyph
-- mouse reporting
+- Mosh route の mouse reporting（Gateway route では無効）
 - implicit / OSC 8 links
 - clipboard copy
 - external keyboard input

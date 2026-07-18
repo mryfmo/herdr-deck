@@ -53,7 +53,7 @@ Automatic policy:
 ```text
 cellularへ移行 → Moshへ即時切替
 Wi-Fiへ復帰   → 0〜120秒のhysteresis後にGatewayへ戻す
-offline       → 最終状態を保持し、network復帰時に再接続
+offline       → Gateway routeへ即時再計算し、network復帰時に再接続
 ```
 
 Wi-Fi 復帰 delay の初期値は 45 秒です。駅や電車内などで interface が短時間に揺れる場合の再 bootstrap を抑制します。
@@ -108,6 +108,8 @@ Mac の Tailscale IPv4 を指定すると、mosh-server の UDP listener を tai
 ### portRange
 
 既定は `60000:61000` です。狭い範囲へ変更する場合は同時 session 数と stale server の残存時間を考慮してください。
+
+`mosh-server` は `MOSH CONNECT` を出した後に detach するため、Gateway の bootstrap timeout で wrapper process を kill しても detached server へ届かない場合があります。その場合は Mosh 自身の no-client abort / network timeout が回収を担当します。
 
 ### takeover
 

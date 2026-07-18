@@ -45,12 +45,14 @@ fi
 
 if [[ -f "$CONFIG" ]]; then
   while IFS=$'\t' read -r label path; do
+    if [[ -z "$path" ]]; then fail "$label missing from configuration"; continue; fi
     if [[ -e "$path" ]]; then ok "$label: $path"; else fail "$label missing: $path"; fi
   done < <(CONFIG="$CONFIG" python3 - <<'PY'
 import json,os
 with open(os.environ['CONFIG']) as f:c=json.load(f)
 for key,label in [('herdrSocket','Herdr socket'),('tokenFile','Token'),('agmsgRoot','AGMSG root')]:
- print(label+'\t'+os.path.expandvars(c[key]))
+ value=c.get(key)
+ print(label+'\t'+(os.path.expandvars(value) if isinstance(value,str) else ''))
 PY
 )
 fi
@@ -141,12 +143,17 @@ if [[ -f "$CONFIG" ]]; then
   AGMSG_ROOT="$(CONFIG="$CONFIG" python3 - <<'PYAGMSG'
 import json,os
 with open(os.environ['CONFIG']) as f:c=json.load(f)
-print(os.path.expandvars(c['agmsgRoot']))
+value=c.get('agmsgRoot')
+print(os.path.expandvars(value) if isinstance(value,str) else '')
 PYAGMSG
 )"
-  for script in api.sh send.sh join.sh delivery.sh; do
-    [[ -x "$AGMSG_ROOT/scripts/$script" ]] && ok "$script" || fail "Missing executable $AGMSG_ROOT/scripts/$script"
-  done
+  if [[ -n "$AGMSG_ROOT" ]]; then
+    for script in api.sh send.sh join.sh delivery.sh; do
+      [[ -x "$AGMSG_ROOT/scripts/$script" ]] && ok "$script" || fail "Missing executable $AGMSG_ROOT/scripts/$script"
+    done
+  else
+    fail "AGMSG root missing from configuration"
+  fi
 fi
 
 printf '\nGateway\n'
@@ -160,10 +167,14 @@ PYPORT
   TOKEN_FILE="$(CONFIG="$CONFIG" python3 - <<'PYTOKEN'
 import json,os
 with open(os.environ['CONFIG']) as f:c=json.load(f)
-print(os.path.expandvars(c['tokenFile']))
+value=c.get('tokenFile')
+print(os.path.expandvars(value) if isinstance(value,str) else '')
 PYTOKEN
 )"
-  if [[ -s "$TOKEN_FILE" ]] && curl -fsS -H "Authorization: Bearer $(tr -d '\r\n' < "$TOKEN_FILE")" "http://127.0.0.1:$PORT/v1/health" >/dev/null 2>&1; then
+  if [[ -n "$TOKEN_FILE" && -s "$TOKEN_FILE" ]] && {
+    { printf 'Authorization: Bearer '; tr -d '\r\n' < "$TOKEN_FILE"; printf '\n'; } |
+      curl -fsS -H @- "http://127.0.0.1:$PORT/v1/health" >/dev/null 2>&1
+  }; then
     ok "Gateway health endpoint"
   else
     warn "Gateway is not running or health check failed"

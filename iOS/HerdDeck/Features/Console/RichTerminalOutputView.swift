@@ -8,32 +8,44 @@ struct RichTerminalOutputView: View {
     private var blocks: [RichOutputBlock] { RichOutputParser.parse(text) }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 14) {
-                if text.isEmpty && error == nil {
-                    HStack(spacing: 10) {
-                        ProgressView().tint(.herdCyan)
-                        Text("Reading agent output…")
-                            .foregroundStyle(.secondary)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 14) {
+                    if text.isEmpty && error == nil {
+                        HStack(spacing: 10) {
+                            ProgressView().tint(.herdCyan)
+                            Text("Reading agent output…")
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 12)
                     }
-                    .padding(.vertical, 12)
-                }
 
-                ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                    RichOutputBlockView(block: block)
-                }
+                    ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                        RichOutputBlockView(block: block)
+                    }
 
-                if let error {
-                    Label(error, systemImage: "exclamationmark.triangle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.herdAmber)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    if let error {
+                        Label(error, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.herdAmber)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                    }
+
+                    Color.clear.frame(width: 1, height: 1).id("rich-terminal-bottom")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+            }
+            .onChange(of: text) { _, _ in
+                withAnimation(.easeOut(duration: 0.18)) {
+                    proxy.scrollTo("rich-terminal-bottom", anchor: .bottom)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(16)
+            .onAppear {
+                proxy.scrollTo("rich-terminal-bottom", anchor: .bottom)
+            }
         }
         .background(
             LinearGradient(

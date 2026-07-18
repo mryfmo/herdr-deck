@@ -233,7 +233,10 @@ struct TerminalConsoleView: View {
                 .lineLimit(1...5)
                 .focused($composerFocused)
                 .submitLabel(.send)
-                .onSubmit { Task { await sendDraft() } }
+                .onSubmit {
+                    guard !isSending else { return }
+                    Task { await sendDraft() }
+                }
                 .padding(.horizontal, 13)
                 .padding(.vertical, 11)
                 .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -442,6 +445,7 @@ struct TerminalConsoleView: View {
     }
 
     private func sendDraft() async {
+        guard !isSending else { return }
         guard let paneID else { return }
         let text = draft.trimmingCharacters(in: .newlines)
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }

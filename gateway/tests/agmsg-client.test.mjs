@@ -152,3 +152,22 @@ test('config accepts only runtimes supported by join.sh', async () => {
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('config rejects a non-array profiles value explicitly', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'herddeck-config-profiles-'));
+  const configPath = path.join(directory, 'config.json');
+  try {
+    await writeFile(configPath, JSON.stringify({
+      projectRoots: [directory],
+      herdrSocket: path.join(directory, 'herdr.sock'),
+      tokenFile: path.join(directory, 'token'),
+      auditLog: path.join(directory, 'audit.jsonl'),
+      missionStore: path.join(directory, 'missions.json'),
+      agmsgRoot: directory,
+      profiles: {},
+    }));
+    await assert.rejects(() => loadConfig(configPath), /profiles must be an array/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

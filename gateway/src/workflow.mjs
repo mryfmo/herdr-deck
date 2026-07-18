@@ -33,6 +33,10 @@ export function scopedAgmsgName(baseName, missionSuffix, ordinal = undefined) {
   return `${base}-${tail}`.slice(0, 80);
 }
 
+function agmsgCommand(runtime) {
+  return runtime === 'codex' ? '$agmsg' : '/agmsg';
+}
+
 export class MissionStore {
   constructor(path) {
     this.path = path;
@@ -40,13 +44,24 @@ export class MissionStore {
     this.loaded = false;
     this.loadPromise = null;
     this.writeQueue = Promise.resolve();
+    this.audit = null;
   }
 
   async load() {
     if (this.loaded) return;
     if (!this.loadPromise) {
       this.loadPromise = (async () => {
-        const document = await readJson(this.path, { version: 1, missions: [] });
+        const document = await readJson(
+          this.path,
+          { version: 1, missions: [] },
+          async (error, corruptPath) => {
+            if (!this.audit) return;
+            await this.audit.failure('mission_store.corrupt', error, {
+              path: this.path,
+              corruptPath,
+            }).catch(() => undefined);
+          },
+        );
         this.records = Array.isArray(document.missions) ? document.missions : [];
         this.loaded = true;
       })();
@@ -145,7 +160,7 @@ export function buildOrchestratorPrompt({
       return `- ${agmsgName}: ${executorProfile.modelLabel} (${executorProfile.effortLabel}), implementation/review executor`;
     })
     .join('\n');
-  return `/agmsg actas ${orchestratorAgmsgName}\n\n` +
+  return `${agmsgCommand(profile.runtime)} actas ${orchestratorAgmsgName}\n\n` +
     `You are the orchestration lead for a HerdDeck mission.\n` +
     `MISSION: ${mission.title}\n` +
     `TEAM: ${mission.team}\n` +
@@ -178,7 +193,7 @@ export function buildExecutorPrompt({
   agmsgName = profile.agmsgName,
   orchestratorAgmsgName = 'orchestrator',
 }) {
-  const command = profile.runtime === 'claude-code' ? '/agmsg' : '$agmsg';
+  const command = agmsgCommand(profile.runtime);
   return `${command} actas ${agmsgName}\n\n` +
     `You are autonomous executor ${ordinal} for a HerdDeck mission.\n` +
     `MISSION: ${mission.title}\n` +
@@ -208,7 +223,7 @@ export function buildCodexDeliveryPrompt({ team, agent, messages }) {
   return `[AGMSG DELIVERY team=${field(team)} recipient=${field(agent)}]\n` +
     `${sections.join('\n\n')}\n` +
     `[END AGMSG DELIVERY]\n` +
-    `Process these messages in order. Reply through $agmsg using your active actas identity; ` +
+    `Process these messages in order. Reply through ${agmsgCommand('codex')} using your active actas identity; ` +
     `send concise status and artifact paths or commit SHAs to the named sender.`;
 }
 
@@ -334,7 +349,7 @@ export class DeliveryAssist {
           messages: deliveredInbound,
         });
       } else {
-        input = '/agmsg';
+        input = agmsgCommand(agent.runtime);
       }
       await this.herdr.sendText(herdrAgent.pane_id, input);
       await sleep(this.config.deliveryAssist.inputDelayMs);
@@ -373,6 +388,7 @@ export class MissionOrchestrator {
     this.monitor = monitor;
     this.config = config;
     this.store = store;
+    if (store instanceof MissionStore) store.audit = audit;
     this.audit = audit;
     this.events = events;
     this.delivery = new DeliveryAssist({ herdr, agmsg, monitor, config, audit, store });

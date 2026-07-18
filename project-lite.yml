@@ -46,6 +46,7 @@ targets:
         CFBundleDisplayName: HerdDeck
         UILaunchScreen: {}
         NSFaceIDUsageDescription: HerdDeck uses device authentication before allowing remote terminal input.
+        NSLocalNetworkUsageDescription: HerdDeck connects to your Mac through your private Tailscale network for Herdr and Mosh terminal sessions.
         UIApplicationSupportsIndirectInputEvents: true
         CFBundleURLTypes:
           - CFBundleTypeRole: Editor

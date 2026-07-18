@@ -1,37 +1,42 @@
 # Build Verification
 
-Verification date: **2026-07-17**
+Verification date: **2026-07-18**
 
 ## Automated checks completed
 
-The source bundle was validated in the available Linux build environment with:
+The repair series was validated in the available worker environments with:
 
 ```bash
 make validate
 ```
 
+Distribution hygiene is a separate gate:
+
+```bash
+make dist-validate
+```
+
 Results:
 
 - Node.js Gateway syntax checks: passed
-- Gateway tests: **23 passed, 0 failed**
+- Gateway Phase 2 gate: **39 passed, 0 failed**
 - Swift source parse (`swiftc -frontend -parse`): passed for every app and XCTest source file
 - Pure Swift model/parser/network-coding typecheck: passed
-- Swift format lint: passed with no diagnostics
+- Swift format lint: executed; warning diagnostics are advisory because lint is not run with `--strict`
 - shell script syntax (`bash -n`): passed
 - JSON parse: passed
 - privacy manifest plist parse: passed
 - XcodeGen YAML parse: passed for full, compatibility, and Lite project specifications
 - local Swift package manifest evaluation: passed for the pinned Mosh / Protobuf binary package
-- generated runtime secret check: `gateway/config.json` is absent
-- signing-secret check: no `.pem`, `.p12`, or `.mobileprovision` files are included
+- `make dist-validate`: generated runtime config and signing-secret checks are kept separate from normal developer validation
 
 Validation environment:
 
 ```text
-Node.js 22.16.0
-Swift 6.2.1 frontend
-Python 3.13.5
-Linux x86_64
+macOS 26.5.2 arm64
+Node.js 24.18.0
+Swift 6.3.3 frontend
+Python 3.14.6
 ```
 
 ## What the automated tests cover
@@ -50,13 +55,15 @@ The Swift XCTest sources cover:
 - AGMSG wire-field mapping
 - Japanese and emoji terminal input
 - mixed UTF-8 and control-sequence mapping
+- unsupported CSI/SS3 suppression and ordered terminal-input chunking
+- slim profile-start response decoding
 - Rich Markdown block parsing with Japanese and emoji
 - terminal preference persistence
 - camelCase public Gateway request encoding
 
 ## Checks that require the target Mac
 
-This environment does not provide macOS, Xcode, an iOS Simulator/runtime, Apple code signing, Tailscale, a live Herdr socket, `mosh-server`, Claude Code, Codex, or AGMSG. Therefore the following have **not** been claimed as completed here:
+The final worker environment does not provide full Xcode/iOS SDKs, an iOS Simulator/runtime, Apple code signing, a live Herdr socket, or live Mosh/Tailscale device routing. Therefore the following have **not** been claimed as completed here:
 
 - final Objective-C++/XCFramework link of the embedded Mosh target
 - iOS Simulator or physical-device build

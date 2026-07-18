@@ -40,8 +40,8 @@ os.chmod(plist_path,0o600)
 PY
 
 launchctl bootout "gui/$UID/com.herddeck.gateway" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$UID" "$PLIST"
 launchctl enable "gui/$UID/com.herddeck.gateway"
+launchctl bootstrap "gui/$UID" "$PLIST"
 launchctl kickstart -k "gui/$UID/com.herddeck.gateway"
 printf 'Installed and started %s\n' "$PLIST"
 printf 'Logs: %s\n' "$LOG_DIR"

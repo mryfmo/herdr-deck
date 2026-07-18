@@ -61,14 +61,14 @@ iOS へ Herdr の内部イベントをそのまま state source として渡さ�
 
 ### AGMSG adapter
 
-Gateway は AGMSG の SQLite DB や team config を直接読み書きしません。
+Gateway の JavaScript process は AGMSG の SQLite DB や team config を直接読み書きしません。読み取りは repository 内の read-only adapter `gateway/scripts/agmsg-api.sh` が SQLite と team config を参照し、JSONL を返します。
 
 読み取り:
 
 ```text
-api.sh get teams
-api.sh get teams <team> members
-api.sh get teams <team> messages ...
+gateway/scripts/agmsg-api.sh get teams
+gateway/scripts/agmsg-api.sh get teams <team> members
+gateway/scripts/agmsg-api.sh get teams <team> messages ...
 ```
 
 書き込み:

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.1 — 2026-07-18
+
+- hardened Gateway request IDs, SSE disconnect handling, rate limiting, Herdr error mapping, token creation, JSON bodies, config validation, and corrupt mission-store recovery
+- aligned AGMSG runtime syntax, durable completion/restart behavior, and repository read-only adapter usage
+- bounded snapshot churn and Mosh session metadata, with expanded Gateway regression coverage
+- fixed iOS SSE framing, terminal escape handling and ordered paste delivery, Mosh resize signaling, route hysteresis, network metrics, duplicate notifications, and profile-start decoding
+- removed private worklogs and runtime logs from source archives, narrowed data validation, hardened setup scripts, and removed the duplicate Mosh project specification
+- corrected API, transport, rendering, UX, verification, and distribution documentation to match implemented behavior
+
 ## 0.2.0 — 2026-07-17
 
 - split the product into an HTTPS/SSE control plane and an independent interactive terminal transport

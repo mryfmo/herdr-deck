@@ -12,8 +12,11 @@ print(os.path.expandvars(c['tokenFile']))
 PY
 )"
 
-mkdir -p "$(dirname "$TOKEN_FILE")"
-chmod 700 "$(dirname "$TOKEN_FILE")"
+TOKEN_DIR="$(dirname "$TOKEN_FILE")"
+if [[ ! -d "$TOKEN_DIR" ]]; then
+  mkdir -p "$TOKEN_DIR"
+  chmod 700 "$TOKEN_DIR"
+fi
 TMP="$TOKEN_FILE.$$.tmp"
 trap 'rm -f "$TMP"' EXIT
 umask 077

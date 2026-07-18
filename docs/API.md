@@ -24,7 +24,7 @@ Authorization: Bearer <token>
 | POST | `/v1/mosh/sessions` | create a short-lived Mosh descriptor for a Herdr pane |
 | GET | `/v1/profiles` | reusable launch profiles |
 | POST | `/v1/profiles/start` | start an agent from an allowlisted profile |
-| GET | `/v1/herdr/snapshot` | normalized full Herdr snapshot |
+| GET | `/v1/herdr/snapshot` | full Herdr snapshot |
 | GET | `/v1/herdr/panes/:id/read` | read visible/recent pane output |
 | POST | `/v1/herdr/panes/:id/input` | send text and/or special keys |
 | POST | `/v1/herdr/rpc` | call a restricted Herdr method |
@@ -62,7 +62,7 @@ POST /v1/profiles/start
 }
 ```
 
-The public mobile API uses camelCase JSON. Herdr's snake_case protocol is confined to the Gateway's Unix-socket adapter.
+App-authored request objects such as profile, mission, Mosh, and terminal input use camelCase JSON. Herdr snapshot/read/RPC responses and snapshot SSE payloads preserve Herdr's snake_case fields; the iOS decoder absorbs those fields with `convertFromSnakeCase`.
 
 ### Read terminal
 
@@ -116,6 +116,8 @@ Validation:
 - prediction mode: `adaptive`, `always`, or `never`
 - server / Herdr executable and advertise host must pass capability checks
 
+`columns` / `rows` are advisory bootstrap dimensions. They seed the attached client environment but do not synchronously resize an already-running Herdr pane; subsequent embedded-Mosh resize events update the Mosh window size.
+
 ### Send terminal input
 
 ```json
@@ -158,7 +160,7 @@ POST /v1/missions
 | Event | Data |
 |---|---|
 | `hello` | request ID and timestamp |
-| `snapshot` | normalized Herdr snapshot |
+| `snapshot` | Herdr snapshot with snake_case fields preserved |
 | `mission` | updated mission record |
 | `agmsg` | team and timestamp hint |
 | `herdr-event` | raw Herdr event envelope for diagnostics |
@@ -191,4 +193,19 @@ Terminal writes use the dedicated, size-limited `/v1/herdr/panes/:id/input` endp
 - messages: max 500 records
 - special keys per request: max 32
 - each special-key string: 1-64 characters
-- rate limit: default 240 requests / 60 seconds per token + source address
+- rate limit: default 240 requests / 60 seconds per source address
+
+## Error responses
+
+Error envelopes always contain a string `error.code`.
+
+| Status | Meaning |
+|---|---|
+| 400 | invalid JSON/object body or Herdr `invalid_*` request |
+| 401 | missing or invalid bearer token |
+| 403 | denied origin, project, or RPC method |
+| 404 | route/resource or Herdr `not_found` / `*_not_found` |
+| 413 | request, terminal input, or message too large |
+| 429 | source-address rate limit exceeded |
+| 502 | other Herdr RPC failure |
+| 503 | required local service unavailable |

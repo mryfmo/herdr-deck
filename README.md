@@ -73,9 +73,10 @@ SwiftTerm の `TerminalView` へ ANSI stream を供給します。
 
 - VT100 / Xterm state
 - 16 / 256 color と True Color
-- cursor、alternate screen、scrollback
+- cursor、alternate screen
+- Mosh route の terminal scrollback（Gateway route は visible screen の full-reset 表示）
 - Unicode grapheme cluster、日本語全角、絵文字
-- mouse reporting、OSC 8 link、外付けキーボード
+- Mosh route の mouse reporting、OSC 8 link、外付けキーボード
 - `Esc`、`Tab`、`Ctrl+C`、`Ctrl+D`、矢印、Enter の mobile key rail
 
 ### Raw
@@ -129,6 +130,7 @@ MacBook:
 
 - macOS、Herdr、Claude Code、Codex、AGMSG、Tailscale
 - Node.js 22 以降、Python 3
+- PyYAML は任意（未導入時は `project*.yml` 検証を skip）
 - Mosh terminal を使う場合は `mosh-server`
 - iOS build 用に Xcode 16 以降と XcodeGen
 
@@ -264,6 +266,12 @@ Linux / macOS で実行できる静的・Gateway 検証:
 make validate
 ```
 
+配布物だけの hygiene 検査（runtime `gateway/config.json` や署名 secret が含まれないこと）は分離されています。配布用 checkout で実行します。
+
+```bash
+make dist-validate
+```
+
 macOS + Xcode では追加で実行します。
 
 ```bash
@@ -305,7 +313,7 @@ HerdDeck は Mac の PTY へ入力できるため、認証済みクライアン�
 
 ## ライセンス
 
-HerdDeck 自身のコードは MIT License です。
+HerdDeck 自身のコードは Apache License 2.0 です([LICENSE](LICENSE) と [NOTICE](NOTICE) を参照)。
 
 - SwiftTerm: MIT
 - Mosh: GNU GPL v3 or later

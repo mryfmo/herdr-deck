@@ -67,13 +67,18 @@ async function readJsonBody(request, limit) {
     chunks.push(chunk);
   }
   if (chunks.length === 0) return {};
+  let body;
   try {
-    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
   } catch (error) {
     const wrapped = new Error(`Invalid JSON body: ${error.message}`);
     wrapped.statusCode = 400;
     throw wrapped;
   }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw requestError('JSON body must be an object');
+  }
+  return body;
 }
 
 function cors(request, response, allowedOrigins) {

@@ -11,7 +11,14 @@ export async function loadOrCreateToken(path) {
     if (error?.code !== 'ENOENT') throw error;
     const token = randomBytes(32).toString('base64url');
     await ensureParent(path);
-    await writeFile(path, `${token}\n`, { mode: 0o600, flag: 'wx' });
+    try {
+      await writeFile(path, `${token}\n`, { mode: 0o600, flag: 'wx' });
+    } catch (writeError) {
+      if (writeError?.code !== 'EEXIST') throw writeError;
+      const winner = (await readFile(path, 'utf8')).trim();
+      if (winner.length < 32) throw new Error(`Token at ${path} is too short`);
+      return winner;
+    }
     await chmod(path, 0o600);
     return token;
   }

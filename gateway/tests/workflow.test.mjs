@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -68,6 +68,22 @@ test('executor prompt uses Codex skill syntax and safe autonomy constraints', ()
   assert.match(prompt, /Never silently broaden scope/);
 });
 
+test('all prompts select agmsg syntax from runtime', () => {
+  const codexOrchestrator = buildOrchestratorPrompt({
+    mission,
+    profile: { ...orchestrator, runtime: 'codex' },
+    executors: [executor],
+    controlRecipient: 'herddeck-control',
+  });
+  const geminiExecutor = buildExecutorPrompt({
+    mission,
+    profile: { ...executor, runtime: 'gemini' },
+    ordinal: 1,
+  });
+  assert.match(codexOrchestrator, /^\$agmsg actas/);
+  assert.match(geminiExecutor, /^\/agmsg actas/);
+});
+
 test('mission-scoped AGMSG identities are reusable and stay within the identifier contract', () => {
   assert.equal(scopedAgmsgName('orchestrator', 'abc12345'), 'orchestrator-abc12345');
   assert.equal(scopedAgmsgName('builder', 'abc12345', 2), 'builder-abc12345-2');
@@ -131,6 +147,34 @@ test('MissionStore serializes concurrent writes and reloads durable mission stat
     const durable = await reloaded.list();
     assert.equal(durable.length, 24);
     assert.equal(durable.find((record) => record.id === 'mission-17')?.ordinal, 17);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('MissionStore quarantines corrupt JSON and records an audit failure', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'herddeck-missions-corrupt-'));
+  const storePath = path.join(directory, 'missions.json');
+  const failures = [];
+  try {
+    await writeFile(storePath, '{broken');
+    const store = new MissionStore(storePath);
+    new MissionOrchestrator({
+      herdr: {},
+      agmsg: {},
+      monitor: {},
+      config: { deliveryAssist: { enabled: false } },
+      store,
+      audit: { async failure(name, error, detail) { failures.push({ name, error, detail }); } },
+      events: {},
+    });
+
+    assert.deepEqual(await store.list(), []);
+    const files = await readdir(directory);
+    assert.equal(files.some((name) => name.startsWith('missions.json.corrupt-')), true);
+    assert.equal(failures.length, 1);
+    assert.equal(failures[0].name, 'mission_store.corrupt');
+    assert.equal(failures[0].detail.path, storePath);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

@@ -1,4 +1,4 @@
-import { access, constants, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { expandTemplate } from './utils.mjs';
 
@@ -120,6 +120,7 @@ export async function loadConfig(path = process.env.HERDDECK_CONFIG) {
   }
   config.projectRoots = config.projectRoots.map((entry) => resolve(entry));
   config.allowedOrigins = Array.isArray(config.allowedOrigins) ? config.allowedOrigins : [];
+  if (!Array.isArray(config.profiles)) throw new Error('profiles must be an array');
   config.profiles = config.profiles.map(validateProfile);
   if (config.profiles.length === 0) throw new Error('At least one agent profile is required');
   const profileIds = new Set();
@@ -137,20 +138,4 @@ export async function loadConfig(path = process.env.HERDDECK_CONFIG) {
   }
 
   return { config, configPath: String(configPath) };
-}
-
-export async function preflightConfig(config) {
-  const checks = [];
-  for (const [label, path, mode] of [
-    ['Herdr socket', config.herdrSocket, constants.R_OK | constants.W_OK],
-    ['agmsg root', config.agmsgRoot, constants.R_OK],
-  ]) {
-    try {
-      await access(path, mode);
-      checks.push({ label, ok: true, path });
-    } catch (error) {
-      checks.push({ label, ok: false, path, error: error.message });
-    }
-  }
-  return checks;
 }

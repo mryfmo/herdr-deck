@@ -10,6 +10,7 @@ final class NetworkPathService: ObservableObject {
     @Published private(set) var isConstrained = false
 
     var onChange: (@MainActor (NetworkInterfaceKind) -> Void)?
+    var onMetricsChange: (@MainActor (_ isExpensive: Bool, _ isConstrained: Bool) -> Void)?
 
     private let monitor: NWPathMonitor
     private let queue = DispatchQueue(label: "com.herddeck.network-path", qos: .utility)
@@ -35,6 +36,7 @@ final class NetworkPathService: ObservableObject {
                 self.isSatisfied = path.status == .satisfied
                 self.isExpensive = path.isExpensive
                 self.isConstrained = path.isConstrained
+                self.onMetricsChange?(path.isExpensive, path.isConstrained)
                 if changed { self.onChange?(interface) }
             }
         }

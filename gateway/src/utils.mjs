@@ -20,11 +20,17 @@ export function expandTemplate(value, env = process.env) {
   return value;
 }
 
-export async function readJson(path, fallback = undefined) {
+export async function readJson(path, fallback = undefined, onCorrupt = undefined) {
   try {
     return JSON.parse(await readFile(path, 'utf8'));
   } catch (error) {
     if (fallback !== undefined && error?.code === 'ENOENT') return fallback;
+    if (fallback !== undefined && error instanceof SyntaxError) {
+      const corruptPath = `${path}.corrupt-${Date.now()}`;
+      await rename(path, corruptPath);
+      await onCorrupt?.(error, corruptPath);
+      return fallback;
+    }
     throw error;
   }
 }

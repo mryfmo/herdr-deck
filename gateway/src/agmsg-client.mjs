@@ -101,9 +101,4 @@ export class AgmsgClient {
     await this.run('join.sh', [team, name, type, project]);
     return { ok: true };
   }
-
-  async deliveryStatus(type, project) {
-    const { stdout } = await this.run('delivery.sh', ['status', type, project]);
-    return stdout.trim();
-  }
 }

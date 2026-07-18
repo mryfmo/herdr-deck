@@ -59,6 +59,10 @@ final class AppState: ObservableObject {
         networkPathService.onChange = { [weak self] interface in
             self?.handleNetworkChange(interface)
         }
+        networkPathService.onMetricsChange = { [weak self] isExpensive, isConstrained in
+            self?.networkIsExpensive = isExpensive
+            self?.networkIsConstrained = isConstrained
+        }
         networkPathService.start()
     }
 

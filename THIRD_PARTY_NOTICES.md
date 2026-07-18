@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-HerdDeck itself is licensed under the MIT License in [LICENSE](LICENSE).
+HerdDeck itself is licensed under the Apache License 2.0 in [LICENSE](LICENSE) (see also [NOTICE](NOTICE)).
 
 This source bundle can produce two build variants:
 

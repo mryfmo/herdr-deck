@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import test from 'node:test';
-import { SlidingWindowRateLimiter, constantTimeEqual } from '../src/auth.mjs';
+import { SlidingWindowRateLimiter, constantTimeEqual, loadOrCreateToken } from '../src/auth.mjs';
 
 test('constantTimeEqual accepts only exact token matches', () => {
   assert.equal(constantTimeEqual('abc123', 'abc123'), true);
@@ -15,4 +18,18 @@ test('SlidingWindowRateLimiter enforces and resets a window', () => {
   assert.equal(limiter.allow('client', 1100), true);
   assert.equal(limiter.allow('client', 1200), false);
   assert.equal(limiter.allow('client', 2101), true);
+});
+
+test('concurrent initial token creation returns the winning token', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'herddeck-token-'));
+  const tokenPath = path.join(directory, 'token');
+  try {
+    const tokens = await Promise.all(
+      Array.from({ length: 16 }, () => loadOrCreateToken(tokenPath)),
+    );
+    assert.equal(new Set(tokens).size, 1);
+    assert.equal(tokens[0], (await readFile(tokenPath, 'utf8')).trim());
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

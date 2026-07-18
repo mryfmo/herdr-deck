@@ -1,5 +1,22 @@
 import SwiftUI
 
+enum MessageTimestamp {
+    private static let fractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+    private static let standard: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    static func date(from value: String) -> Date? {
+        fractional.date(from: value) ?? standard.date(from: value)
+    }
+}
+
 struct MessagesView: View {
     @EnvironmentObject private var appState: AppState
     @State private var selectedAgentFilter: String?
@@ -150,7 +167,10 @@ struct MessagesView: View {
                     .lineLimit(1...5)
                     .focused($composerFocused)
                     .submitLabel(.send)
-                    .onSubmit { Task { await send() } }
+                    .onSubmit {
+                        guard !isSending else { return }
+                        Task { await send() }
+                    }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 15))
@@ -188,6 +208,7 @@ struct MessagesView: View {
     }
 
     private func send() async {
+        guard !isSending else { return }
         guard let team = selectedTeam else { return }
         let body = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !body.isEmpty else { return }
@@ -226,7 +247,11 @@ private struct AgmsgMessageCard: View {
                 Text(message.toAgent)
                     .font(.caption.weight(.semibold))
                 Spacer()
-                Text(Self.timeFormatter.string(from: Self.dateFormatter.date(from: message.at) ?? Date()))
+                Text(
+                    MessageTimestamp.date(from: message.at)
+                        .map { Self.timeFormatter.string(from: $0) }
+                        ?? message.at
+                )
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -259,7 +284,6 @@ private struct AgmsgMessageCard: View {
         }
     }
 
-    private static let dateFormatter = ISO8601DateFormatter()
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.timeStyle = .short

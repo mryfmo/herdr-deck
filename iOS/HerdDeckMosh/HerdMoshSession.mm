@@ -79,7 +79,15 @@ static void HerdMoshStateCallback(const void *context, const void *buffer, size_
         _stopping = NO;
     }
 
-    if (pipe(_inputPipe) != 0 || pipe(_outputPipe) != 0) {
+    if (pipe(_inputPipe) != 0) {
+        @synchronized (self) { _running = NO; }
+        dispatch_async(dispatch_get_main_queue(), ^{ self->_exitHandler(71); });
+        return;
+    }
+    if (pipe(_outputPipe) != 0) {
+        close(_inputPipe[0]);
+        close(_inputPipe[1]);
+        _inputPipe[0] = _inputPipe[1] = -1;
         @synchronized (self) { _running = NO; }
         dispatch_async(dispatch_get_main_queue(), ^{ self->_exitHandler(71); });
         return;
@@ -106,8 +114,10 @@ static void HerdMoshStateCallback(const void *context, const void *buffer, size_
 
     dispatch_async(_engineQueue, ^{
         struct winsize windowSize;
+        NSData *resumeState;
         @synchronized (self) {
             windowSize = self->_windowSize;
+            resumeState = self->_encodedState;
             self->_activeWindowSize = &windowSize;
             self->_moshThread = pthread_self();
             self->_hasMoshThread = YES;
@@ -118,7 +128,6 @@ static void HerdMoshStateCallback(const void *context, const void *buffer, size_
         if (lang == NULL || strstr(lang, "UTF-8") == NULL) setenv("LANG", "en_US.UTF-8", 1);
 
         NSString *portString = [NSString stringWithFormat:@"%d", self->_port];
-        NSData *resumeState = self->_encodedState;
         const char *stateBytes = resumeState.length > 0 ? (const char *)resumeState.bytes : "";
         int result = mosh_main(
             self->_inputFile,

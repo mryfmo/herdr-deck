@@ -23,7 +23,7 @@ swift-typecheck:
 
 data-validate:
 	@for f in scripts/*.sh; do bash -n "$$f" || exit 1; done
-	@python3 -c 'import json,pathlib; [json.loads(p.read_text()) for p in pathlib.Path(".").rglob("*.json")]'
+	@python3 -c 'import json,pathlib; P=pathlib.Path; [json.loads(p.read_text()) for p in [*P("iOS").rglob("*.json"),*P("gateway").rglob("*.json"),*P(".").glob("*.json")] if "node_modules" not in p.parts]'
 	@python3 -c 'import pathlib,plistlib; [plistlib.loads(p.read_bytes()) for p in pathlib.Path(".").rglob("*.xcprivacy")]'
 	@if python3 -c 'import yaml' >/dev/null 2>&1; then python3 -c 'import pathlib,yaml; [yaml.safe_load(p.read_text()) for p in pathlib.Path(".").glob("project*.yml")]'; else echo "skipping project yml validation (PyYAML not installed)"; fi
 	@if command -v xcrun >/dev/null 2>&1; then xcrun swift-format lint --recursive iOS; else swift-format lint --recursive iOS; fi
@@ -53,6 +53,9 @@ archive:
 	@name="$$(basename "$$(pwd)")"; \
 	cd .. && rm -f "$$name-source.zip" "$$name-source.zip.sha256" && \
 	zip -r -X "$$name-source.zip" "$$name" \
-		-x "$$name/.git/*" "$$name/.build/*" "$$name/DerivedData/*" \
-		   "$$name/gateway/config.json" "$$name/*.zip" "$$name/*.ipa" && \
+		-x "$$name/.git/*" "$$name/.codex/*" "$$name/.claude/*" \
+		   "$$name/.agents/*" "$$name/.orchestration/*" \
+		   "$$name/.build/*" "$$name/DerivedData/*" \
+		   "$$name/gateway/config.json" "$$name/gateway/*.log" \
+		   "$$name/*.zip" "$$name/*.ipa" && \
 	sha256sum "$$name-source.zip" > "$$name-source.zip.sha256"

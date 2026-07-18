@@ -14,15 +14,23 @@ function response() {
   };
 }
 
-function request(path, { authorization, remoteAddress = '100.64.0.7' } = {}) {
+function request(path, {
+  authorization,
+  remoteAddress = '100.64.0.7',
+  method = 'GET',
+  body,
+} = {}) {
   return {
-    method: 'GET',
+    method,
     url: path,
     headers: {
       host: 'localhost',
       ...(authorization ? { authorization } : {}),
     },
     socket: { remoteAddress },
+    async *[Symbol.asyncIterator]() {
+      if (body !== undefined) yield Buffer.from(body);
+    },
   };
 }
 
@@ -121,3 +129,19 @@ test('HerdrRpcError fallback is 502 and its envelope code is always a string', a
   assert.equal(result.status, 502);
   assert.deepEqual(errorBody(result), { code: '17', message: 'rpc failed' });
 });
+
+for (const body of ['null', '[]', '"text"', '42']) {
+  test(`JSON body ${body} returns invalid_request`, async () => {
+    const result = response();
+    await router()(
+      request('/v1/missions', {
+        authorization: 'Bearer secret',
+        method: 'POST',
+        body,
+      }),
+      result,
+    );
+    assert.equal(result.status, 400);
+    assert.equal(errorBody(result).code, 'invalid_request');
+  });
+}

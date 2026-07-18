@@ -1,0 +1,187 @@
+T007 validation
+===============
+
+Gateway syntax
+--------------
+commands:
+  node --check gateway/src/auth.mjs
+  node --check gateway/src/config.mjs
+  node --check gateway/src/utils.mjs
+  node --check gateway/src/agmsg-client.mjs
+  node --check gateway/src/workflow.mjs
+  node --check gateway/src/router.mjs
+
+exit_code: 0 for every command
+
+Socket-independent Gateway tests
+--------------------------------
+command:
+  cd gateway && node --test tests/auth.test.mjs tests/agmsg-client.test.mjs tests/mosh-manager.test.mjs tests/router.test.mjs tests/workflow.test.mjs
+
+exit_code: 0
+result:
+  tests 42
+  pass 42
+  fail 0
+
+Socket-free SnapshotMonitor regression
+--------------------------------------
+command:
+  cd gateway && node --test --test-name-pattern='SnapshotMonitor ignores pane scroll-only snapshot changes' tests/herdr-client.test.mjs
+
+exit_code: 0
+result:
+  tests 1
+  pass 1
+  fail 0
+
+Shell and archive checks
+------------------------
+command:
+  bash -n scripts/doctor.sh scripts/generate-token.sh scripts/rotate-token.sh scripts/install-launch-agent.sh
+
+exit_code: 0
+
+command:
+  make -n archive
+
+exit_code: 0
+confirmed exclusions:
+  .git, .codex, .claude, .agents, .orchestration, .build, DerivedData,
+  gateway/config.json, gateway/*.log, *.zip, *.ipa
+
+Doctor missing-key regression
+-----------------------------
+command:
+  HERDDECK_CONFIG=.orchestration/validation/T007-doctor-empty-config.json ./scripts/doctor.sh
+
+exit_code: 1 (expected for an invalid empty configuration)
+confirmed output:
+  Herdr socket missing from configuration
+  Token missing from configuration
+  AGMSG root missing from configuration
+
+The script reached every explicit check instead of aborting its Python reader
+with `KeyError`.
+
+Token-directory permission regression
+-------------------------------------
+setup:
+  mktemp -d /private/tmp/herddeck-t007-token.XXXXXX
+  chmod 755 <directory>
+command:
+  HERDDECK_TOKEN_FILE=<directory>/token ./scripts/generate-token.sh
+  HERDDECK_CONFIG=.orchestration/validation/T007-rotate-config.json ./scripts/rotate-token.sh
+
+exit_code: 0
+result:
+  existing directory mode: 755
+  generated/rotated token mode: 600
+
+Project specification checks
+----------------------------
+commands:
+  test ! -e project-mosh.yml
+  rg -n 'NSLocalNetworkUsageDescription' project-lite.yml
+
+exit_code: 0
+result:
+  duplicate Mosh specification is absent; Lite contains the project.yml usage text.
+
+Standalone timestamp check (default CLT environment)
+----------------------------------------------------
+command:
+  swift .orchestration/validation/T007-timestamp-check.swift
+
+exit_code: 1
+result:
+  The sandbox denied the default home module cache, and the installed Swift
+  6.3.3 compiler rejected the default SDK built by Swift 6.3.2.
+
+Standalone timestamp check (compatible installed SDK)
+-----------------------------------------------------
+command:
+  swift -module-cache-path .orchestration/validation/T007-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk .orchestration/validation/T007-timestamp-check.swift
+
+exit_code: 0
+output:
+  MessageTimestamp checks passed
+
+Assertions cover:
+  - ISO8601 timestamp with fractional seconds
+  - ISO8601 timestamp without fractional seconds
+  - invalid timestamp rejection
+
+Production/check copy equality
+------------------------------
+comparison:
+  MessagesView.swift lines 3-18 and T007-timestamp-check.swift lines 3-18
+
+result:
+  exact match (the captured outputs are byte-for-byte identical)
+
+Whole Swift tree parse
+----------------------
+command:
+  make swift-parse
+
+exit_code: 0
+
+AppState/model/service dependency closure typecheck
+---------------------------------------------------
+command:
+  swiftc -typecheck -swift-version 6 -module-cache-path .orchestration/validation/T007-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk iOS/HerdDeck/Models/JSONValue.swift iOS/HerdDeck/Models/GatewayModels.swift iOS/HerdDeck/Models/HerdrModels.swift iOS/HerdDeck/Models/AgmsgModels.swift iOS/HerdDeck/Models/TerminalTransportModels.swift iOS/HerdDeck/Models/MissionModels.swift iOS/HerdDeck/Networking/GatewayJSONCoding.swift iOS/HerdDeck/Networking/GatewayClient.swift iOS/HerdDeck/Services/KeychainStore.swift iOS/HerdDeck/Services/BiometricLock.swift iOS/HerdDeck/Services/AgentNotificationService.swift iOS/HerdDeck/Services/NetworkPathService.swift iOS/HerdDeck/App/AppState.swift
+
+exit_code: 0
+
+Objective-C++ Mosh syntax check
+-------------------------------
+command:
+  clang++ -fsyntax-only -x objective-c++ -fobjc-arc -isysroot /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk -I .orchestration/validation/T006-mosh-stub iOS/HerdDeckMosh/HerdMoshSession.mm
+
+exit_code: 0
+
+The existing task-local stub only declares the pinned mosh bridge function
+needed for syntax checking. It does not modify or replace the dependency.
+
+Documentation correspondence
+----------------------------
+
+| Corrected prior statement | Implementation evidence | Corrected documentation |
+|---|---|---|
+| Public responses were described as uniformly camelCase and the Herdr snapshot as normalized. | gateway/src/router.mjs:207-210 returns `monitor.refresh()` unchanged; gateway/src/router.mjs:266-270 sends `monitor.latest` unchanged. | docs/API.md:25,65,163 now distinguish app-authored camelCase requests from preserved Herdr snake_case responses/SSE. |
+| Mosh `columns`/`rows` implied synchronous pane resize. | gateway/src/mosh-manager.mjs:128-141 only validates bootstrap dimensions; iOS/HerdDeckMosh/HerdMoshSession.mm:114-128 owns later embedded-client window state. | docs/API.md:119 marks the values advisory bootstrap dimensions and explains later resize events. |
+| Rate limiting was documented as token plus source. | gateway/src/router.mjs:150-152 keys the limiter only by `remoteAddress`. | docs/API.md:196 and :209 say per source address. |
+| API status/error behavior was omitted. | gateway/src/router.mjs:57-80,103-107,137-155,225-259,325-344 implement 400/401/403/404/413/429/502/503 mapping and string codes. | docs/API.md:198-211 provides the error table and string-code contract. |
+| Architecture examples named a generic `api.sh` and obscured the adapter's direct read mechanism. | gateway/src/agmsg-client.mjs:6,22 invokes the repository adapter; gateway/scripts/agmsg-api.sh:25-106 reads team config and SQLite with `sqlite3 -readonly`. | docs/ARCHITECTURE.md:64-75 names `gateway/scripts/agmsg-api.sh`, its read-only role, and actual commands. |
+| Offline automatic routing was said to keep the last route. | iOS/HerdDeck/App/AppState.swift:419-445 immediately recomputes non-Wi-Fi changes and falls back to Gateway when unavailable. | docs/MOSH.md:56 says offline immediately recomputes to Gateway. |
+| Bootstrap timeout implied the detached Mosh server was always killed. | gateway/src/mosh-manager.mjs:7,238-239 observes `MOSH CONNECT` then can only signal the wrapper child at timeout. | docs/MOSH.md:112 records the detached-server limitation and Mosh no-client/network cleanup. |
+| Terminal scrollback and mouse reporting were presented as route-independent. | iOS/HerdDeck/Features/Console/TerminalConsoleView.swift:24-26,188,367-381 uses visible reads/full resets and enables mouse only for Mosh. | docs/RENDERING.md:52,60,62 and README.md:77,79 scope scrollback/mouse behavior to Mosh. |
+| Settings documentation advertised a terminal poll-interval UI that does not exist. | iOS/HerdDeck/Features/Settings/SettingsView.swift:71-151 contains transport/render/hysteresis/prediction controls, but no poll interval. | docs/UX.md removed the unsupported bullet. |
+| Verification claimed strict-clean formatting and combined normal/distribution validation. | Makefile:23-38 keeps `swift-format lint` advisory and defines normal checks; Makefile:34-38 is the separate distribution gate. T002-T006 acceptance recorded 39 Gateway tests. | VERIFICATION.md:14-31 records the separate gate, Phase 2 count, and advisory warnings. |
+| README omitted optional YAML tooling and treated distribution hygiene as part of normal validation. | Makefile:28 skips YAML validation when PyYAML is absent; Makefile:34-38 defines `dist-validate`. | README.md:133,266-274 documents optional PyYAML and the separate command. |
+| The repair series had no release entry. | T002-T007 source/test changes and their validation artifacts provide the implementation record. | CHANGELOG.md:3-10 adds the 0.2.1 repair summary without promising unimplemented features. |
+
+Formatting and diff hygiene
+---------------------------
+command:
+  git diff --check
+
+exit_code: 0
+
+Repository review gate
+----------------------
+command:
+  make require-crit-review
+
+exit_code: 2
+output:
+  make: *** No rule to make target `require-crit-review'. Stop.
+
+The required target is absent. Per repository policy, no browser Crit review
+was opened. The AGMSG orchestrator remains the independent review surface.
+
+Orchestrator-owned validation
+-----------------------------
+Per T007, the worker did not run the full socket-dependent suite, make validate,
+live checks, Xcode/iOS builds, or MANIFEST regeneration.

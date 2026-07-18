@@ -82,7 +82,6 @@ AGMSG の durable coordination log を人間が読み書きする面です。
 - default Rich / Terminal / Raw presentation
 - endpoint
 - biometric lock
-- terminal poll interval
 - security reminders
 - forget / re-pair
 
