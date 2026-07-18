@@ -1,0 +1,20 @@
+.DS_Store
+DerivedData/
+.build/
+.swiftpm/
+Package.resolved
+*.xcodeproj/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcuserstate
+.env
+gateway/config.json
+gateway/*.log
+*.zip
+*.ipa
+*.mobileprovision
+
+# local agent state (machine-specific hooks and locks)
+.claude/
+.codex/
+# validation-time compiler caches
+.orchestration/validation/*-swift-module-cache/

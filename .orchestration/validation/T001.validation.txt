@@ -1,0 +1,135 @@
+command: make check
+exit_code: 2
+
+cd gateway && npm run check
+
+> @herddeck/gateway@0.2.0 check
+> node --check src/index.mjs && node --check src/router.mjs && node --check src/workflow.mjs && node --check src/mosh-manager.mjs
+
+cd gateway && npm test
+
+> @herddeck/gateway@0.2.0 test
+> node --test --test-reporter=spec
+
+(node:65487) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:65488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ AgmsgClient consumes the documented script API instead of SQLite (20.40025ms)
+✔ AgmsgClient rejects shell-shaped identities (7.245125ms)
+(node:65490) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ constantTimeEqual accepts only exact token matches (0.405917ms)
+✔ SlidingWindowRateLimiter enforces and resets a window (0.110125ms)
+(node:65491) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ HerdrClient unwraps session.snapshot (1.837167ms)
+✖ HerdrClient sends exact pane input params (2.35ms)
+✖ HerdrClient maps protocol errors (0.481666ms)
+✖ HerdrClient keeps events.subscribe open and forwards pushed events (0.46475ms)
+(node:65494) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ normalizes and validates Mosh port ranges (0.530917ms)
+✔ reports disabled capability without throwing (14.769083ms)
+✔ starts a session and never includes the key in audit data (8.541459ms)
+✔ rejects unsupported prediction modes before launching mosh-server (1.581875ms)
+✔ rejects unknown panes before launching mosh-server (1.473209ms)
+(node:65495) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ orchestrator prompt encodes bounded agmsg coordination protocol (0.600042ms)
+✔ executor prompt uses Codex skill syntax and safe autonomy constraints (0.655417ms)
+✔ mission-scoped AGMSG identities are reusable and stay within the identifier contract (0.325375ms)
+✔ public profile does not expose environment values (0.116792ms)
+✔ Codex delivery prompt preserves targeted AGMSG envelope and reply protocol (0.163166ms)
+✔ Codex delivery prompt sanitizes envelope metadata without rewriting message bodies (0.090916ms)
+✔ MissionStore serializes concurrent writes and reloads durable mission state (33.051875ms)
+✔ delivery assist injects targeted Codex messages with delayed Enter for an opaque id (2.081834ms)
+✔ mission reconciliation completes only after the orchestrator is done and executors are settled (0.290666ms)
+✔ mission reconciliation accepts an explicit durable AGMSG completion signal (0.172167ms)
+ℹ tests 23
+ℹ suites 0
+ℹ pass 19
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 100.97125
+
+✖ failing tests:
+
+test at tests/herdr-client.test.mjs:35:1
+✖ HerdrClient unwraps session.snapshot (1.837167ms)
+  Error: listen EPERM: operation not permitted /var/folders/r2/_gkywj713g54lbxkc_hv7j400000gn/T/herddeck-herdr-ceDVht/herdr.sock
+      at Server.setupListenHandle [as _listen2] (node:net:1987:21)
+      at listenInCluster (node:net:2066:12)
+      at Server.listen (node:net:2188:5)
+      at HerdrClient.socketPath.socketPath (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:25:12)
+      at new Promise (<anonymous>)
+      at withMockHerdr (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:23:9)
+      at async TestContext.<anonymous> (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:36:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '/var/folders/r2/_gkywj713g54lbxkc_hv7j400000gn/T/herddeck-herdr-ceDVht/herdr.sock',
+    port: -1
+  }
+
+test at tests/herdr-client.test.mjs:55:1
+✖ HerdrClient sends exact pane input params (2.35ms)
+  Error: listen EPERM: operation not permitted /var/folders/r2/_gkywj713g54lbxkc_hv7j400000gn/T/herddeck-herdr-7hklbD/herdr.sock
+      at Server.setupListenHandle [as _listen2] (node:net:1987:21)
+      at listenInCluster (node:net:2066:12)
+      at Server.listen (node:net:2188:5)
+      at HerdrClient.socketPath.socketPath (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:25:12)
+      at new Promise (<anonymous>)
+      at withMockHerdr (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:23:9)
+      at async TestContext.<anonymous> (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:56:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '/var/folders/r2/_gkywj713g54lbxkc_hv7j400000gn/T/herddeck-herdr-7hklbD/herdr.sock',
+    port: -1
+  }
+
+test at tests/herdr-client.test.mjs:66:1
+✖ HerdrClient maps protocol errors (0.481666ms)
+  Error: listen EPERM: operation not permitted /var/folders/r2/_gkywj713g54lbxkc_hv7j400000gn/T/herddeck-herdr-Vb32vz/herdr.sock
+      at Server.setupListenHandle [as _listen2] (node:net:1987:21)
+      at listenInCluster (node:net:2066:12)
+      at Server.listen (node:net:2188:5)
+      at HerdrClient.socketPath.socketPath (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:25:12)
+      at new Promise (<anonymous>)
+      at withMockHerdr (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:23:9)
+      at async TestContext.<anonymous> (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:67:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '/var/folders/r2/_gkywj713g54lbxkc_hv7j400000gn/T/herddeck-herdr-Vb32vz/herdr.sock',
+    port: -1
+  }
+
+test at tests/herdr-client.test.mjs:80:1
+✖ HerdrClient keeps events.subscribe open and forwards pushed events (0.46475ms)
+  Error: listen EPERM: operation not permitted /var/folders/r2/_gkywj713g54lbxkc_hv7j400000gn/T/herddeck-herdr-uET4UT/herdr.sock
+      at Server.setupListenHandle [as _listen2] (node:net:1987:21)
+      at listenInCluster (node:net:2066:12)
+      at Server.listen (node:net:2188:5)
+      at HerdrClient.socketPath.socketPath (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:25:12)
+      at new Promise (<anonymous>)
+      at withMockHerdr (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:23:9)
+      at async TestContext.<anonymous> (file:///Users/mryfmo/Workspace/HerdDeck-0.2.0/gateway/tests/herdr-client.test.mjs:81:3)
+      at async Test.run (node:internal/test_runner/test:1332:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:911:7) {
+    code: 'EPERM',
+    errno: -1,
+    syscall: 'listen',
+    address: '/var/folders/r2/_gkywj713g54lbxkc_hv7j400000gn/T/herddeck-herdr-uET4UT/herdr.sock',
+    port: -1
+  }
+make: *** [check] Error 1

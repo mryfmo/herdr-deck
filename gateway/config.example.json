@@ -1,0 +1,83 @@
+{
+  "bindHost": "127.0.0.1",
+  "port": 8787,
+  "herdrSocket": "${HOME}/.config/herdr/herdr.sock",
+  "tokenFile": "${HOME}/.config/herddeck/token",
+  "auditLog": "${HOME}/.local/state/herddeck/audit.jsonl",
+  "missionStore": "${HOME}/.local/state/herddeck/missions.json",
+  "agmsgRoot": "${HOME}/.agents/skills/agmsg",
+  "allowedOrigins": [],
+  "projectRoots": [
+    "${HOME}/Developer",
+    "${HOME}/Projects"
+  ],
+  "snapshotPollMs": 5000,
+  "terminalReadLimit": 400,
+  "requestBodyLimitBytes": 262144,
+  "rateLimit": {
+    "windowMs": 60000,
+    "maxRequests": 240
+  },
+  "deliveryAssist": {
+    "enabled": true,
+    "pollMs": 1500,
+    "onlyWhenAgentNotWorking": false,
+    "inputDelayMs": 140
+  },
+  "mosh": {
+    "enabled": false,
+    "serverPath": "/opt/homebrew/bin/mosh-server",
+    "herdrPath": "/opt/homebrew/bin/herdr",
+    "advertiseHost": "macbook.example-tailnet.ts.net",
+    "bindAddress": "100.64.0.10",
+    "portRange": "60000:61000",
+    "predictionMode": "adaptive",
+    "startupTimeoutMs": 6000,
+    "networkTimeoutSeconds": 604800,
+    "takeover": true
+  },
+  "profiles": [
+    {
+      "id": "claude-fable-orchestrator",
+      "displayName": "Fable Orchestrator",
+      "runtime": "claude-code",
+      "role": "orchestrator",
+      "agmsgName": "orchestrator",
+      "modelLabel": "Claude Fable 5",
+      "effortLabel": "High",
+      "argv": [
+        "claude",
+        "--model",
+        "fable",
+        "--effort",
+        "high",
+        "--name",
+        "herddeck-orchestrator"
+      ],
+      "env": {},
+      "accent": "violet"
+    },
+    {
+      "id": "codex-sol-executor",
+      "displayName": "Sol Autonomous Builder",
+      "runtime": "codex",
+      "role": "executor",
+      "agmsgName": "builder",
+      "modelLabel": "GPT-5.6 Sol",
+      "effortLabel": "High",
+      "argv": [
+        "codex",
+        "--model",
+        "gpt-5.6-sol",
+        "-c",
+        "model_reasoning_effort=\"high\"",
+        "--sandbox",
+        "workspace-write",
+        "--add-dir",
+        "${HOME}/.agents/skills/agmsg"
+      ],
+      "env": {},
+      "accent": "cyan"
+    }
+  ]
+}

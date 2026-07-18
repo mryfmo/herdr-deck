@@ -1,0 +1,16 @@
+{
+  "name": "@herddeck/gateway",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Loopback-only bridge from HerdDeck for iOS to Herdr and agmsg.",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/index.mjs",
+    "dev": "NODE_ENV=development node --watch src/index.mjs",
+    "test": "node --test --test-reporter=spec",
+    "check": "node --check src/index.mjs && node --check src/router.mjs && node --check src/workflow.mjs && node --check src/mosh-manager.mjs"
+  }
+}

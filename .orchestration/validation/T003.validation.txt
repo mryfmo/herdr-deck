@@ -1,0 +1,145 @@
+T003 validation
+===============
+
+Test-first reproduction
+-----------------------
+command: cd gateway && node --test tests/agmsg-client.test.mjs tests/workflow.test.mjs
+exit_code: 1
+output:
+✖ AgmsgClient reads teams, members, and ordered messages through the repository adapter
+✔ AgmsgClient rejects shell-shaped identities
+✖ config accepts only runtimes supported by join.sh
+✔ orchestrator prompt encodes bounded agmsg coordination protocol
+✔ executor prompt uses Codex skill syntax and safe autonomy constraints
+✔ mission-scoped AGMSG identities are reusable and stay within the identifier contract
+✔ public profile does not expose environment values
+✔ Codex delivery prompt preserves targeted AGMSG envelope and reply protocol
+✔ Codex delivery prompt sanitizes envelope metadata without rewriting message bodies
+✔ MissionStore serializes concurrent writes and reloads durable mission state
+✔ delivery assist injects targeted Codex messages with delayed Enter for an opaque id
+✔ mission reconciliation completes only after the orchestrator is done and executors are settled
+✔ mission reconciliation accepts an explicit durable AGMSG completion signal
+✖ mission reconciliation falls back to Herdr when durable AGMSG reads fail
+✖ delivery assist guards audit failures and continues polling with backoff
+✖ SseHub removes a client when its response emits an error
+✖ router replaces an invalid request id before setting the response header
+ℹ tests 17
+ℹ pass 11
+ℹ fail 6
+
+The failures reproduced the missing api.sh adapter, incomplete runtime
+whitelist, unguarded AGMSG/audit failures, missing SSE error listener, and
+unsanitized request ID.
+
+Adapter shell syntax
+--------------------
+command: bash -n gateway/scripts/agmsg-api.sh
+exit_code: 0
+output: (none)
+
+Real AGMSG teams (read-only)
+----------------------------
+command: AGMSG_ROOT=/Users/mryfmo/.agents/skills/agmsg gateway/scripts/agmsg-api.sh get teams
+exit_code: 0
+output:
+"ai-ops-platform"
+"dotfiles-conformance"
+"dotfiles-tmux-hermes-removal"
+"enmaru-project"
+"flue-pi-productionization"
+"herddeck-project"
+"herness-self-improvement"
+"icsnet-project"
+"t20-scratch"
+"towa-no-neko-project"
+
+Real AGMSG messages (read-only)
+-------------------------------
+command: AGMSG_ROOT=/Users/mryfmo/.agents/skills/agmsg gateway/scripts/agmsg-api.sh get teams herddeck-project messages --limit 5
+exit_code: 0
+output:
+{"type":"message","id":1217,"team":"herddeck-project","from":"claude-fable5high-herddeck","to":"codex-gpt56solhigh-herddeck","body":"AGMSG-ACCEPTANCE v1 task_id=T001 status=accepted reason=make-check-evidence-complete-epermsandbox-limitation-independently-verified next_action=none","at":"2026-07-18T00:47:25Z"}
+{"type":"message","id":1225,"team":"herddeck-project","from":"claude-fable5high-herddeck","to":"codex-gpt56solhigh-herddeck","body":"AGMSG-TASK v1 task_id=T002 repo=/Users/mryfmo/Workspace/HerdDeck-0.2.0 task_file=.orchestration/tasks/T002.task.md allowed_files=see-task-file-section forbidden_actions=dependency-changes;git-operations;network-execution;gateway-or-docs-edits;manifest-regeneration;running-bootstrap-mac expected_result_file=.orchestration/reports/T002.report.md expected_validation_file=.orchestration/validation/T002.validation.txt expected_sandbox_file=.orchestration/sandboxes/T002.sandbox.md expected_learning_file=.orchestration/learning/T002.learning.md expected_autoskill_file=.orchestration/autoskill/T002.autoskill.md done_signal=AGMSG-RESULT max_turns=15 note=act-as-worker-phase0-build-repair","at":"2026-07-18T01:13:14Z"}
+{"type":"message","id":1230,"team":"herddeck-project","from":"codex-gpt56solhigh-herddeck","to":"claude-fable5high-herddeck","body":"AGMSG-RESULT v1 task_id=T002 status=ready_for_review report=.orchestration/reports/T002.report.md validation=.orchestration/validation/T002.validation.txt sandbox=.orchestration/sandboxes/T002.sandbox.md learning=.orchestration/learning/T002.learning.md autoskill=.orchestration/autoskill/T002.autoskill.md","at":"2026-07-18T01:22:03Z"}
+{"type":"message","id":1235,"team":"herddeck-project","from":"claude-fable5high-herddeck","to":"codex-gpt56solhigh-herddeck","body":"AGMSG-ACCEPTANCE v1 task_id=T002 status=accepted reason=all-6-fixes-verified-independently-full-make-validate-exit0 next_action=T003-dispatched","at":"2026-07-18T01:24:23Z"}
+{"type":"message","id":1236,"team":"herddeck-project","from":"claude-fable5high-herddeck","to":"codex-gpt56solhigh-herddeck","body":"AGMSG-TASK v1 task_id=T003 repo=/Users/mryfmo/Workspace/HerdDeck-0.2.0 task_file=.orchestration/tasks/T003.task.md allowed_files=see-task-file-section forbidden_actions=dependency-changes;git-operations;network-execution;ios-docs-makefile-edits;api-shape-changes;writes-to-real-agmsg-db;manifest-regeneration expected_result_file=.orchestration/reports/T003.report.md expected_validation_file=.orchestration/validation/T003.validation.txt expected_sandbox_file=.orchestration/sandboxes/T003.sandbox.md expected_learning_file=.orchestration/learning/T003.learning.md expected_autoskill_file=.orchestration/autoskill/T003.autoskill.md done_signal=AGMSG-RESULT max_turns=25 note=act-as-worker-phase1-gateway-agmsg-adapter","at":"2026-07-18T01:24:23Z"}
+
+Real AGMSG JSONL validation
+---------------------------
+command: AGMSG_ROOT=/Users/mryfmo/.agents/skills/agmsg gateway/scripts/agmsg-api.sh get teams herddeck-project messages --limit 5 | python3 -c 'import json,sys; rows=[json.loads(line) for line in sys.stdin if line.strip()]; assert all(row["type"] == "message" for row in rows); assert [row["id"] for row in rows] == sorted(row["id"] for row in rows); print(f"valid_jsonl_records={len(rows)}")'
+exit_code: 0
+output:
+valid_jsonl_records=5
+
+Focused gateway tests
+---------------------
+command: cd gateway && node --test tests/agmsg-client.test.mjs tests/workflow.test.mjs tests/auth.test.mjs tests/mosh-manager.test.mjs
+exit_code: 0
+output:
+✔ AgmsgClient reads teams, members, and ordered messages through the repository adapter (496.105125ms)
+✔ AgmsgClient rejects shell-shaped identities (12.661459ms)
+✔ config accepts only runtimes supported by join.sh (3.023ms)
+✔ constantTimeEqual accepts only exact token matches (0.385167ms)
+✔ SlidingWindowRateLimiter enforces and resets a window (0.121083ms)
+✔ normalizes and validates Mosh port ranges (0.791875ms)
+✔ reports disabled capability without throwing (15.127ms)
+✔ starts a session and never includes the key in audit data (7.631959ms)
+✔ rejects unsupported prediction modes before launching mosh-server (1.707167ms)
+✔ rejects unknown panes before launching mosh-server (2.144ms)
+✔ orchestrator prompt encodes bounded agmsg coordination protocol (0.656958ms)
+✔ executor prompt uses Codex skill syntax and safe autonomy constraints (0.129458ms)
+✔ mission-scoped AGMSG identities are reusable and stay within the identifier contract (0.263042ms)
+✔ public profile does not expose environment values (0.097875ms)
+✔ Codex delivery prompt preserves targeted AGMSG envelope and reply protocol (0.139792ms)
+✔ Codex delivery prompt sanitizes envelope metadata without rewriting message bodies (0.072208ms)
+✔ MissionStore serializes concurrent writes and reloads durable mission state (31.359625ms)
+✔ delivery assist injects targeted Codex messages with delayed Enter for an opaque id (2.048667ms)
+✔ mission reconciliation completes only after the orchestrator is done and executors are settled (0.298375ms)
+✔ mission reconciliation accepts an explicit durable AGMSG completion signal (0.173291ms)
+✔ mission reconciliation falls back to Herdr when durable AGMSG reads fail (0.171875ms)
+✔ delivery assist guards audit failures and continues polling with backoff (54.642667ms)
+✔ SseHub removes a client when its response emits an error (0.284208ms)
+✔ router replaces an invalid request id before setting the response header (0.660625ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 559.472209
+
+The sandbox-only HerdrClient test file was excluded as permitted by the task
+because Unix-domain socket listen is denied with EPERM.
+
+Changed source syntax
+---------------------
+command: node --check gateway/src/agmsg-client.mjs
+exit_code: 0
+output: (none)
+
+command: node --check gateway/src/config.mjs
+exit_code: 0
+output: (none)
+
+command: node --check gateway/src/workflow.mjs
+exit_code: 0
+output: (none)
+
+command: node --check gateway/src/sse.mjs
+exit_code: 0
+output: (none)
+
+command: node --check gateway/src/router.mjs
+exit_code: 0
+output: (none)
+
+Repository review gate
+----------------------
+command: make require-crit-review
+exit_code: 2
+output:
+make: *** No rule to make target `require-crit-review'.  Stop.
+
+No browser Crit review was opened. The orchestrator performs the required
+adversarial review for this AGMSG task.

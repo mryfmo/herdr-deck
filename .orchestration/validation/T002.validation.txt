@@ -1,0 +1,188 @@
+T002 validation
+===============
+
+Swift compiler note
+-------------------
+The default MacOSX26.5 SDK is built with Swift 6.3.2 while the installed
+swiftc is 6.3.3. The C-2/C-3 reproductions therefore use the installed
+MacOSX15.4 SDK and an allowed task-local module cache. Before and after use
+identical commands.
+
+C-2 before
+----------
+command: swiftc -typecheck -swift-version 6 -module-cache-path .orchestration/validation/T002-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk iOS/HerdDeck/Models/JSONValue.swift iOS/HerdDeck/Models/GatewayModels.swift iOS/HerdDeck/Models/TerminalTransportModels.swift iOS/HerdDeck/Services/NetworkPathService.swift
+exit_code: 1
+output:
+iOS/HerdDeck/Services/NetworkPathService.swift:30:34: error: call to main actor-isolated static method 'interface(for:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+28 |         started = true
+29 |         monitor.pathUpdateHandler = { [weak self] path in
+30 |             let interface = Self.interface(for: path)
+   |                                  `- error: call to main actor-isolated static method 'interface(for:)' in a synchronous nonisolated context [#ActorIsolatedCall]
+31 |             Task { @MainActor [weak self] in
+32 |                 guard let self else { return }
+   :
+42 |     }
+43 |
+44 |     private static func interface(for path: NWPath) -> NetworkInterfaceKind {
+   |                         `- note: calls to static method 'interface(for:)' from outside of its actor context are implicitly asynchronous
+45 |         guard path.status == .satisfied else { return .unavailable }
+46 |         if path.usesInterfaceType(.cellular) { return .cellular }
+
+[#ActorIsolatedCall]: <https://docs.swift.org/compiler/documentation/diagnostics/actor-isolated-call>
+
+C-2 after
+---------
+command: swiftc -typecheck -swift-version 6 -module-cache-path .orchestration/validation/T002-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk iOS/HerdDeck/Models/JSONValue.swift iOS/HerdDeck/Models/GatewayModels.swift iOS/HerdDeck/Models/TerminalTransportModels.swift iOS/HerdDeck/Services/NetworkPathService.swift
+exit_code: 0
+output: (none)
+
+C-3 before
+----------
+command: swiftc -typecheck -swift-version 6 -module-cache-path .orchestration/validation/T002-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk -D HERDDECK_EMBEDDED_MOSH -import-objc-header iOS/HerdDeckMosh/HerdDeckMosh-Bridging-Header.h .orchestration/validation/T002-MoshStubs.swift iOS/HerdDeck/Features/Console/MoshSessionController.swift
+exit_code: 1
+output:
+iOS/HerdDeck/Features/Console/MoshSessionController.swift:160:24: error: incorrect argument label in call (have 'columns:rows:', expected 'withColumns:rows:')
+158 |
+159 |     func resize(columns: Int, rows: Int) {
+160 |         session?.resize(columns: Int32(columns), rows: Int32(rows))
+    |                        `- error: incorrect argument label in call (have 'columns:rows:', expected 'withColumns:rows:')
+161 |     }
+162 |
+
+C-3 after
+---------
+command: swiftc -typecheck -swift-version 6 -module-cache-path .orchestration/validation/T002-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk -D HERDDECK_EMBEDDED_MOSH -import-objc-header iOS/HerdDeckMosh/HerdDeckMosh-Bridging-Header.h .orchestration/validation/T002-MoshStubs.swift iOS/HerdDeck/Features/Console/MoshSessionController.swift
+exit_code: 0
+output: (none)
+
+C-6 extracted heredoc
+---------------------
+command: bash .orchestration/validation/T002-heredoc-test.sh
+exit_code: 0
+output:
+
+Before launch, verify these values in:
+  dummy
+
+1. projectRoots contains every repository parent directory you intend to control.
+2. herdrSocket points to the active Herdr session socket.
+3. agmsgRoot points to the installed agmsg skill directory.
+4. profile model names match `claude` and `codex` on this Mac.
+5. To use Mosh on cellular, run scripts/bootstrap-mosh-mac.sh and enable the mosh block.
+
+The defaults deliberately keep Codex in workspace-write sandbox mode and never add dangerous approval bypass flags.
+
+The process returned immediately; neither CLI REPL was started.
+
+Bootstrap shell syntax
+----------------------
+command: bash -n scripts/bootstrap-mac.sh
+exit_code: 0
+output: (none)
+
+Data validation
+---------------
+command: make data-validate
+exit_code: 0
+output begins:
+skipping project yml validation (PyYAML not installed)
+iOS/HerdDeck/UI/HerdDeckTheme.swift:54:82: warning: [ReplaceForEachWithForLoop] replace use of '.forEach { ... }' with for-in loop
+iOS/HerdDeck/UI/HerdDeckTheme.swift:58:83: warning: [ReplaceForEachWithForLoop] replace use of '.forEach { ... }' with for-in loop
+
+The remaining output is existing swift-format warning diagnostics. The
+execution interface truncated the 4,535-line console result, so integrity
+evidence for a fresh full run is recorded below instead of claiming the
+inline excerpt is complete.
+
+command: zsh -o pipefail -c 'make data-validate 2>&1 | wc -l'
+exit_code: 0
+output:
+    4535
+
+command: zsh -o pipefail -c 'make data-validate 2>&1 | shasum -a 256'
+exit_code: 0
+output:
+9e9c19a22c7e4f6c13e2d76527d98d0eda93933f275d853314e6de5ceb48f310  -
+
+Distribution validation separation
+----------------------------------
+command: make dist-validate
+exit_code: 1
+output: (none)
+
+The first assertion fails because gateway/config.json exists, which is the
+expected proof that distribution-only checks were separated from validate.
+
+Swift parse
+-----------
+command: make swift-parse
+exit_code: 0
+output:
+swiftc -frontend -parse $(find iOS/HerdDeck iOS/HerdDeckTests -name '*.swift' -print | sort)
+
+Package validation (plain sandbox run)
+--------------------------------------
+command: make package-validate
+exit_code: 2
+output:
+swift package dump-package --package-path Vendor/MoshBinaryPackage >/dev/null
+warning: /Users/mryfmo/Library/org.swift.swiftpm/configuration is not accessible or not writable, disabling user-level cache features.
+warning: /Users/mryfmo/Library/org.swift.swiftpm/security is not accessible or not writable, disabling user-level cache features.
+warning: /Users/mryfmo/Library/Caches/org.swift.swiftpm is not accessible or not writable, disabling user-level cache features.
+error: 'moshbinarypackage': Invalid manifest (compiled with: ["/Library/Developer/CommandLineTools/usr/bin/swiftc", "-vfsoverlay", "/var/folders/r2/_gkywj713g54lbxkc_hv7j400000gn/T/TemporaryDirectory.o5eyw0/vfs.yaml", "-L", "/Library/Developer/CommandLineTools/usr/lib/swift/pm/ManifestAPI", "-lPackageDescription", "-Xlinker", "-rpath", "-Xlinker", "/Library/Developer/CommandLineTools/usr/lib/swift/pm/ManifestAPI", "-target", "arm64-apple-macosx14.0", "-I", "/Library/Developer/CommandLineTools/Library/Developer/Frameworks", "-L", "/Library/Developer/CommandLineTools/Library/Developer/Frameworks", "-plugin-path", "/Library/Developer/CommandLineTools/usr/lib/swift/host/plugins/testing", "-sdk", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk", "-swift-version", "5", "-I", "/Library/Developer/CommandLineTools/usr/lib/swift/pm/ManifestAPI", "-sdk", "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk", "-package-description-version", "5.9.0", "/Users/mryfmo/Workspace/HerdDeck-0.2.0/Vendor/MoshBinaryPackage/Package.swift", "-o", "/var/folders/r2/_gkywj713g54lbxkc_hv7j400000gn/T/TemporaryDirectory.rBPtsV/moshbinarypackage-manifest"])
+<unknown>:0: error: unable to open output file '/Users/mryfmo/.cache/clang/ModuleCache/2S232HFN52QDJ/SwiftShims-3DMJL40ENYFGZ.pcm': 'Operation not permitted'
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface:5:8: error: could not build Objective-C module 'SwiftShims'
+    3 | // swift-module-flags: -target arm64e-apple-macosx26.5 -target-variant arm64e-apple-ios26.5-macabi -enable-objc-interop -enable-library-evolution -module-link-name swiftCore -parse-stdlib -swift-version 5 -O -library-level api -enforce-exclusivity=unchecked -target-min-inlining-version min -enable-experimental-concise-pound-file -disable-objc-attr-requires-foundation-module -enable-experimental-feature NoncopyableGenerics2 -enable-experimental-feature SuppressedAssociatedTypes -enable-experimental-feature SE427NoInferenceOnExtension -enable-experimental-feature NonescapableTypes -enable-experimental-feature LifetimeDependence -enable-experimental-feature InoutLifetimeDependence -enable-experimental-feature LifetimeDependenceMutableAccessors -enable-experimental-feature MemberImportVisibility -enable-experimental-feature TypedThrows -enable-experimental-feature Macros -enable-experimental-feature FreestandingMacros -enable-experimental-feature BitwiseCopyable -enable-experimental-feature Extern -enable-experimental-feature AllowUnsafeAttribute -enable-experimental-feature ValueGenerics -enable-experimental-feature AddressableParameters -enable-experimental-feature AddressableTypes -user-module-version 6.3.2.1.3 -module-name Swift
+    4 | // swift-module-flags-ignorable: -enable-lexical-lifetimes=false -strict-memory-safety -formal-cxx-interoperability-mode=off -interface-compiler-version 6.3.2
+    5 | import SwiftShims
+      |        `- error: could not build Objective-C module 'SwiftShims'
+    6 | @inlinable public func min<T>(_ x: T, _ y: T) -> T where T : Swift.Comparable {
+    7 |
+
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface:1:1: error: failed to build module 'Swift'; this SDK is not supported by the compiler (the SDK is built with 'Apple Swift version 6.3.2 effective-5.10 (swiftlang-6.3.2.1.2 clang-2100.0.123.2)', while this compiler is 'Apple Swift version 6.3.3 effective-5.10 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)'). Please select a toolchain which matches the SDK.
+    1 | // swift-interface-format-version: 1.0
+      | `- error: failed to build module 'Swift'; this SDK is not supported by the compiler (the SDK is built with 'Apple Swift version 6.3.2 effective-5.10 (swiftlang-6.3.2.1.2 clang-2100.0.123.2)', while this compiler is 'Apple Swift version 6.3.3 effective-5.10 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)'). Please select a toolchain which matches the SDK.
+    2 | // swift-compiler-version: Apple Swift version 6.3.2 effective-5.10 (swiftlang-6.3.2.1.2 clang-2100.0.123.2)
+    3 | // swift-module-flags: -target arm64e-apple-macosx26.5 -target-variant arm64e-apple-ios26.5-macabi -enable-objc-interop -enable-library-evolution -module-link-name swiftCore -parse-stdlib -swift-version 5 -O -library-level api -enforce-exclusivity=unchecked -target-min-inlining-version min -enable-experimental-concise-pound-file -disable-objc-attr-requires-foundation-module -enable-experimental-feature NoncopyableGenerics2 -enable-experimental-feature SuppressedAssociatedTypes -enable-experimental-feature SE427NoInferenceOnExtension -enable-experimental-feature NonescapableTypes -enable-experimental-feature LifetimeDependence -enable-experimental-feature InoutLifetimeDependence -enable-experimental-feature LifetimeDependenceMutableAccessors -enable-experimental-feature MemberImportVisibility -enable-experimental-feature TypedThrows -enable-experimental-feature Macros -enable-experimental-feature FreestandingMacros -enable-experimental-feature BitwiseCopyable -enable-experimental-feature Extern -enable-experimental-feature AllowUnsafeAttribute -enable-experimental-feature ValueGenerics -enable-experimental-feature AddressableParameters -enable-experimental-feature AddressableTypes -user-module-version 6.3.2.1.3 -module-name Swift
+error: invalid manifests at [<AbsolutePath:"/Users/mryfmo/Workspace/HerdDeck-0.2.0/Vendor/MoshBinaryPackage">]
+make: *** [package-validate] Error 1
+
+Package validation (sandbox-compatible fallback)
+------------------------------------------------
+command: CLANG_MODULE_CACHE_PATH="$PWD/.orchestration/validation/T002-swift-module-cache" SWIFTPM_MODULECACHE_OVERRIDE="$PWD/.orchestration/validation/T002-swift-module-cache" SDKROOT=/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk swift package --disable-sandbox dump-package --package-path Vendor/MoshBinaryPackage >/dev/null
+exit_code: 0
+output:
+warning: /Users/mryfmo/Library/org.swift.swiftpm/configuration is not accessible or not writable, disabling user-level cache features.
+warning: /Users/mryfmo/Library/org.swift.swiftpm/security is not accessible or not writable, disabling user-level cache features.
+warning: /Users/mryfmo/Library/Caches/org.swift.swiftpm is not accessible or not writable, disabling user-level cache features.
+warning: 'moshbinarypackage': failed storing manifest for 'moshbinarypackage' in cache: attempt to write a readonly database
+
+Target composition (dry run)
+----------------------------
+command: make -n validate
+exit_code: 0
+output:
+cd gateway && npm run check
+cd gateway && npm test
+/Library/Developer/CommandLineTools/usr/bin/make swift-parse
+swiftc -frontend -parse $(find iOS/HerdDeck iOS/HerdDeckTests -name '*.swift' -print | sort)
+/Library/Developer/CommandLineTools/usr/bin/make swift-typecheck
+swiftc -typecheck \
+		iOS/HerdDeck/Models/JSONValue.swift \
+		iOS/HerdDeck/Models/GatewayModels.swift \
+		iOS/HerdDeck/Models/HerdrModels.swift \
+		iOS/HerdDeck/Models/AgmsgModels.swift \
+		iOS/HerdDeck/Models/TerminalTransportModels.swift \
+		iOS/HerdDeck/Models/MissionModels.swift \
+		iOS/HerdDeck/Features/Console/TerminalInputMapper.swift \
+		iOS/HerdDeck/Features/Console/RichOutputModels.swift \
+		iOS/HerdDeck/Networking/GatewayJSONCoding.swift
+for f in scripts/*.sh; do bash -n "$f" || exit 1; done
+python3 -c 'import json,pathlib; [json.loads(p.read_text()) for p in pathlib.Path(".").rglob("*.json")]'
+python3 -c 'import pathlib,plistlib; [plistlib.loads(p.read_bytes()) for p in pathlib.Path(".").rglob("*.xcprivacy")]'
+if python3 -c 'import yaml' >/dev/null 2>&1; then python3 -c 'import pathlib,yaml; [yaml.safe_load(p.read_text()) for p in pathlib.Path(".").glob("project*.yml")]'; else echo "skipping project yml validation (PyYAML not installed)"; fi
+if command -v xcrun >/dev/null 2>&1; then xcrun swift-format lint --recursive iOS; else swift-format lint --recursive iOS; fi
+swift package dump-package --package-path Vendor/MoshBinaryPackage >/dev/null
+
+Per task instruction, make check/npm test and therefore make validate were not
+executed in the Codex sandbox.
