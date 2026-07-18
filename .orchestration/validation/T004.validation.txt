@@ -1,0 +1,87 @@
+T004 validation
+===============
+
+Standalone parser check (default CLT environment)
+-------------------------------------------------
+command: swift .orchestration/validation/T004-sse-parser-check.swift
+exit_code: 1
+output:
+<unknown>:0: error: unable to open output file '/Users/mryfmo/.cache/clang/ModuleCache/2S232HFN52QDJ/SwiftShims-3DMJL40ENYFGZ.pcm': 'Operation not permitted'
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface:5:8: error: could not build Objective-C module 'SwiftShims'
+/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib/swift/Swift.swiftmodule/arm64e-apple-macos.swiftinterface:1:1: error: failed to build module 'Swift'; this SDK is not supported by the compiler (the SDK is built with 'Apple Swift version 6.3.2 effective-5.10 (swiftlang-6.3.2.1.2 clang-2100.0.123.2)', while this compiler is 'Apple Swift version 6.3.3 effective-5.10 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)'). Please select a toolchain which matches the SDK.
+
+The script did not begin execution. This is the same installed CLT
+compiler/default-SDK mismatch and home module-cache sandbox denial documented
+in T002.
+
+Standalone parser check (compatible installed SDK and task-local cache)
+----------------------------------------------------------------------
+command: swift -module-cache-path .orchestration/validation/T004-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk .orchestration/validation/T004-sse-parser-check.swift
+exit_code: 0
+output:
+SSEFrameParser checks passed
+
+Assertions cover:
+- snapshot event and JSON payload
+- multiline data joined with LF
+- CRLF framing
+- consecutive events
+- default `message` event name
+- byte-by-byte chunk fragmentation
+- oversized line discard and recovery
+- oversized event data discard and recovery
+- unterminated event discard at stream end
+
+Production/check copy equality
+------------------------------
+command:
+python3 -c 'from pathlib import Path
+
+def extract(path):
+    text=Path(path).read_text(); start=text.index("struct SSEFrameParser {"); depth=0
+    for i in range(start, len(text)):
+        if text[i]=="{": depth+=1
+        elif text[i]=="}":
+            depth-=1
+            if depth==0: return text[start:i+1]
+    raise AssertionError("unterminated struct")
+assert extract("iOS/HerdDeck/Networking/GatewayClient.swift") == extract(".orchestration/validation/T004-sse-parser-check.swift")
+print("parser_copy_matches=true")'
+exit_code: 0
+output:
+parser_copy_matches=true
+
+The executed command read
+`iOS/HerdDeck/Networking/GatewayClient.swift` and
+`.orchestration/validation/T004-sse-parser-check.swift`, extracted the
+brace-balanced `struct SSEFrameParser` block from each, and asserted exact
+string equality.
+
+Swift parse
+-----------
+command: make swift-parse
+exit_code: 0
+output:
+swiftc -frontend -parse $(find iOS/HerdDeck iOS/HerdDeckTests -name '*.swift' -print | sort)
+
+GatewayClient typecheck
+-----------------------
+command: swiftc -typecheck -swift-version 6 -module-cache-path .orchestration/validation/T004-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk iOS/HerdDeck/Models/JSONValue.swift iOS/HerdDeck/Models/GatewayModels.swift iOS/HerdDeck/Models/HerdrModels.swift iOS/HerdDeck/Models/AgmsgModels.swift iOS/HerdDeck/Models/TerminalTransportModels.swift iOS/HerdDeck/Models/MissionModels.swift iOS/HerdDeck/Networking/GatewayJSONCoding.swift iOS/HerdDeck/Networking/GatewayClient.swift
+exit_code: 0
+output: (none)
+
+AppState typecheck
+------------------
+command: swiftc -typecheck -swift-version 6 -module-cache-path .orchestration/validation/T004-swift-module-cache -sdk /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk iOS/HerdDeck/Models/JSONValue.swift iOS/HerdDeck/Models/GatewayModels.swift iOS/HerdDeck/Models/HerdrModels.swift iOS/HerdDeck/Models/AgmsgModels.swift iOS/HerdDeck/Models/TerminalTransportModels.swift iOS/HerdDeck/Models/MissionModels.swift iOS/HerdDeck/Networking/GatewayJSONCoding.swift iOS/HerdDeck/Networking/GatewayClient.swift iOS/HerdDeck/Services/KeychainStore.swift iOS/HerdDeck/Services/BiometricLock.swift iOS/HerdDeck/Services/AgentNotificationService.swift iOS/HerdDeck/Services/NetworkPathService.swift iOS/HerdDeck/App/AppState.swift
+exit_code: 0
+output: (none)
+
+Repository review gate
+----------------------
+command: make require-crit-review
+exit_code: 2
+output:
+make: *** No rule to make target `require-crit-review'.  Stop.
+
+No browser Crit review was opened. The AGMSG orchestrator performs independent
+review and environment validation.
