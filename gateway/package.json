@@ -2,6 +2,7 @@
   "name": "@herddeck/gateway",
   "version": "0.2.0",
   "private": true,
+  "license": "Apache-2.0",
   "type": "module",
   "description": "Loopback-only bridge from HerdDeck for iOS to Herdr and agmsg.",
   "engines": {
